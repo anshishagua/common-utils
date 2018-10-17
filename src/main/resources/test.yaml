@@ -1,0 +1,452 @@
+# Copyright (c) 2015 App Annie Inc. All rights reserved.
+# MKT Daily routine jobs
+
+name: MKT Daily Routine (%(start_date)s to %(end_date)s)
+
+value: 1.1111
+value1: 3.435
+longValue : 123455234234234
+
+person:
+  id: 11
+  name: benben
+
+start:
+  next:
+    - wait_android_app_event
+    - wait_ios_app_event
+
+wait_app_info_data:
+  node_type: task
+  script_type: wait_s3_data
+  script_params:
+    schema: APP_INFO_D
+  next: join_launch_emr
+
+wait_android_app_event:
+  node_type: task
+  script_type: wait_s3_data
+  script_params:
+    schema: ANDROID_APP_EVENT_I
+    params:
+      date: '(end_date_prev)s'
+  next: join_launch_emr
+
+
+
+
+join_launch_emr:
+  node_type: join
+  wait:
+  - wait_android_app_event
+  - wait_ios_app_event
+  next: launch_cluster
+
+launch_cluster:
+  node_type: task
+  script_type: launch_amr
+  script_params:
+    cluster_name: '%(cluster_name)s'
+    node_count: '%(node_count)s'
+    category: MKTINT_DP_AMR-ETL
+    slave_instance_type: 'r4.4xlarge'
+  next:
+  - mkt_meta_data
+  - switch_mkt_app_list
+
+switch_mkt_app_list:
+  node_type: decision
+  switch:
+  - case: '"%(refresh_data)s" in ("True", "true", True)'
+    next: join_deliver_kpi
+  - default:
+    next: mkt_app_list
+
+mkt_meta_data:
+  node_type: task
+  alert_on_fail: True
+  script_type: loop:pyspark
+  script_path: python/mkt_etl/mkt_meta_data.py
+  script_params:
+    cluster_name: '%(cluster_name)s'
+    version: '%(mkt_meta_version)s'
+    range_type: '%(range_type)s'
+    batch: '%(batch)s'
+    fix_mkt_meta_data: '%(fix_mkt_meta_data)s'
+    Cspark.sql.shuffle.partitions: '800'
+    Cspark.executor.memory: '8g'
+    Cspark.default.parallelism: '900'
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date)s'
+        end_date: '%(end_date)s'
+        range_type: DAY
+      multiprocess: 3
+  next:
+  - mkt_meta_monitoring_kpi
+  - mkt_kpi_top_list_stats_week_to_date
+  - mkt_kpi_top_list_stats_month_to_date
+  - mkt_kpi_pub_app_ad_app_datrng
+  - mkt_adapp_new_creatives
+  - mkt_kpi_count_list_stats_week_to_date
+  - mkt_kpi_count_list_stats_month_to_date
+
+mkt_adapp_new_creatives:
+  node_type: task
+  alert_on_fail: True
+  script_type: loop:pyspark
+  script_path: python/sherlock/mkt_adapp_new_creatives.py
+  script_params:
+    cluster_name: '%(cluster_name)s'
+    version: '1.0.0'
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date)s'
+        end_date: '%(end_date)s'
+        range_type: DAY
+      multiprocess: 1
+  next: join_deliver_kpi
+
+mkt_app_list:
+  node_type: task
+  alert_on_fail: True
+  script_type: loop:pyspark
+  script_path: python.mkt_etl.mkt_app_list.py
+  script_params:
+    cluster_name: '%(cluster_name)s'
+    load_days: 30
+    download_threshold: 100
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date)s'
+        end_date: '%(end_date)s'
+        range_type: DAY
+      multiprocess: 3
+  next: mkt_app_update
+
+mkt_app_update:
+  node_type: task
+  alert_on_fail: True
+  script_type: loop:pyspark
+  script_path: python.mkt_etl.mkt_app_update.py
+  script_params:
+    cluster_name: '%(cluster_name)s'
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date_prev)s'
+        end_date: '%(end_date_prev)s'
+        range_type: DAY
+      multiprocess: 3
+  next: send_ack_to_backend
+
+send_ack_to_backend:
+  node_type: task
+  alert_on_fail: True
+  script_type: python
+  script_path: python/mkt_etl/send_app_list_message.py
+  script_params:
+    date: '%(end_date)s'
+    settings: 'api_settings.MktAckAPI'
+  next: join_deliver_kpi
+
+mkt_meta_monitoring_kpi:
+  node_type: task
+  alert_on_fail: True
+  script_type: loop:pyspark
+  script_path: python/mkt_etl/mkt_meta_monitoring_kpi.py
+  script_params:
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date)s'
+        end_date: '%(end_date)s'
+        range_type: DAY
+      multiprocess: 3
+    version: '%(mkt_meta_version)s'
+    cluster_name: '%(cluster_name)s'
+  next: join_deliver_kpi
+
+mkt_kpi_top_list_stats_week_to_date:
+  node_type: task
+  alert_on_fail: True
+  script_type: loop:pyspark
+  script_path: python/mkt_kpi/mkt_kpi_top_list_stats.py
+  script_params:
+    Dexecutor-memory: 12g
+    Cspark.default.parallelism: 1000
+    Cspark.sql.shuffle.partitions: 1000
+    cluster_name: '%(cluster_name)s'
+    run_type: to_date
+    range_type: WEEK
+    mdm_kpi_version: '%(mdm_kpi_version)s'
+    mkt_kpi_version: '%(mkt_kpi_version)s'
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date)s'
+        end_date: '%(end_date)s'
+        range_type: '%(week_to_date_range)s'
+      multiprocess: 3
+  next:
+  - join_deliver_kpi
+
+
+mkt_kpi_top_list_stats_month_to_date:
+  node_type: task
+  alert_on_fail: True
+  script_type: loop:pyspark
+  script_path: python/mkt_kpi/mkt_kpi_top_list_stats.py
+  script_params:
+    Dexecutor-memory: 12g
+    Cspark.default.parallelism: 2500
+    Cspark.sql.shuffle.partitions: 2000
+    cluster_name: '%(cluster_name)s'
+    run_type: to_date
+    range_type: MONTH
+    mdm_kpi_version: '%(mdm_kpi_version)s'
+    mkt_kpi_version: '%(mkt_kpi_version)s'
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date)s'
+        end_date: '%(end_date)s'
+        range_type: '%(month_to_date_range)s'
+      multiprocess: 3
+  next:
+  - join_deliver_kpi
+
+mkt_kpi_count_list_stats_week_to_date:
+  node_type: task
+  script_type: loop:pyspark
+  script_path: python/mkt_kpi/mkt_kpi_count_list_stats.py
+  script_params:
+    Dexecutor-memory: 8g
+    cluster_name: '%(cluster_name)s'
+    run_type: 'to_date'
+    range_type: 'WEEK'
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date)s'
+        end_date: '%(end_date)s'
+        range_type: '%(week_to_date_range)s'
+      multiprocess: 3
+    mkt_kpi_version: '%(mkt_kpi_version)s'
+  next: join_deliver_kpi
+
+mkt_kpi_count_list_stats_month_to_date:
+  node_type: task
+  script_type: loop:pyspark
+  script_path: python/mkt_kpi/mkt_kpi_count_list_stats.py
+  script_params:
+    Dexecutor-memory: 8g
+    cluster_name: '%(cluster_name)s'
+    run_type: 'to_date'
+    range_type: 'MONTH'
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date)s'
+        end_date: '%(end_date)s'
+        range_type: '%(month_to_date_range)s'
+      multiprocess: 3
+    mkt_kpi_version: '%(mkt_kpi_version)s'
+  next: join_deliver_kpi
+
+mkt_kpi_pub_app_ad_app_datrng:
+  node_type: task
+  script_type: loop:pyspark
+  script_path: python/mkt_kpi/mkt_kpi_datrng.py
+  script_params:
+    cluster_name: '%(cluster_name)s'
+    Cspark.executor.memory: '7g'
+    Cspark.sql.shuffle.partitions: '800'
+    Cspark.default.parallelism: '1000'
+    range_type: '%(range_type)s'
+    mkt_kpi_version: '%(mkt_kpi_version)s'
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date)s'
+        end_date: '%(end_date)s'
+        range_type: 'DAY'
+      multiprocess: 1
+  next: join_deliver_kpi
+
+join_deliver_kpi:
+  node_type: join
+  wait:
+  - switch_mkt_app_list
+  - send_ack_to_backend
+  - mkt_kpi_pub_app_ad_app_datrng
+  - mkt_kpi_top_list_stats_week_to_date
+  - mkt_kpi_top_list_stats_month_to_date
+  - mkt_meta_monitoring_kpi
+  - mkt_kpi_count_list_stats_month_to_date
+  - mkt_kpi_count_list_stats_week_to_date
+  - mkt_adapp_new_creatives
+  next: mkt_kpi_deliver
+
+mkt_kpi_deliver:
+  node_type: task
+  script_type: loop:pyspark
+  script_path: python/mkt_kpi/mkt_kpi_deliver.py
+  script_params:
+    Dexecutor-memory: 4g
+    cluster_name: '%(cluster_name)s'
+    mkt_kpi_version: '%(mkt_kpi_version)s'
+    batch: '%(batch)s'
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date)s'
+        end_date: '%(end_date)s'
+        range_type: 'DAY'
+      multiprocess: 3
+    - arg: range_type
+      generator: enum
+      generator_params:
+        values: [["DAY", 'MONTH_TO_DATE', 'WEEK_TO_DATE']]
+      multiprocess: 3
+  next: terminate_emr
+
+terminate_emr:
+  node_type: task
+  script_type: terminate_amr
+  script_params:
+    cluster_name: '%(cluster_name)s'
+  next: switch_send_message
+
+switch_send_message:
+  node_type: decision
+  switch:
+  - case: '"%(send_message)s" == "False"'
+    next: join_end
+  - default:
+    next:
+    - send_stat_week_message_to_int
+    - send_stat_month_message_to_int
+    - send_meta_message_to_int
+    - send_datrng_message_to_int
+
+send_stat_month_message_to_int:
+  node_type: task
+  script_type: loop:python
+  script_path: tools/send_etl_message.py
+  script_params:
+    source: mkt_metrics_creative
+    batch: '%(batch)s'
+    version: v1.0.0
+    range_type: MONTH
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date)s'
+        end_date: '%(end_date)s'
+        range_type: '%(month_to_date_range)s'
+      multiprocess: 3
+    - arg: settings
+      generator: enum
+      generator_params:
+        values: [['api_settings.IntEtlQueue']]
+      multiprocess: 2
+  next: join_end
+
+send_stat_week_message_to_int:
+  node_type: task
+  script_type: loop:python
+  script_path: tools/send_etl_message.py
+  script_params:
+    source: mkt_metrics_creative
+    batch: '%(batch)s'
+    version: v1.0.0
+    range_type: WEEK
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date)s'
+        end_date: '%(end_date)s'
+        range_type: '%(week_to_date_range)s'
+      multiprocess: 3
+    - arg: settings
+      generator: enum
+      generator_params:
+        values: [['api_settings.IntEtlQueue']]
+      multiprocess: 3
+  next: join_end
+
+send_meta_message_to_int:
+  node_type: task
+  alert_on_fail: True
+  script_type: loop:python
+  script_path: tools/send_etl_message.py
+  script_params:
+    source: mkt_meta
+    batch: '%(batch)s'
+    version: '%(mkt_meta_version)s'
+    range_type: DAY
+    rule: '$source/$batch/$version/$granularity/$date/$country_code/$platform/$device/$network'
+    loop:
+    - arg: date
+      generator: date
+      generator_params:
+        start_date: '%(start_date)s'
+        end_date: '%(end_date)s'
+        range_type: DAY
+      multiprocess: 3
+    - arg: settings
+      generator: enum
+      generator_params:
+        values: [['api_settings.IntEtlQueue']]
+      multiprocess: 3
+  next: join_end
+
+send_datrng_message_to_int:
+  node_type: task
+  script_type: loop:python
+  script_path: tools/send_etl_message.py
+  script_params:
+    source: mkt_metrics_pub_app_ad_app
+    batch: '%(batch)s'
+    version: v1.0.0
+    range_type: DAY
+    date: '%(end_date)s'
+    loop:
+    - arg: settings
+      generator: enum
+      generator_params:
+        values: [['api_settings.IntEtlQueue']]
+      multiprocess: 3
+  next: join_end
+
+join_end:
+  node_type: join
+  wait:
+  - switch_send_message
+  - send_stat_month_message_to_int
+  - send_stat_week_message_to_int
+  - send_meta_message_to_int
+  - send_datrng_message_to_int
+  next: end
+
+
+aaa:
+  - werewr
+      -bbbb
