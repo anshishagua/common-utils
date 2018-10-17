@@ -21,6 +21,7 @@ public class YamlUtilsTest {
     @Test
     public void testGetAsString() {
         Assert.assertEquals(YamlUtils.getAsString(object, "join_end.wait[0]", null), "switch_send_message");
+        Assert.assertEquals(YamlUtils.getAsString(object, "aaa[0][0]", null), "bbb");
     }
 
     @Test
@@ -40,6 +41,6 @@ public class YamlUtilsTest {
 
     @Test
     public void testGetAsList() {
-        Assert.assertEquals(YamlUtils.getAsDouble(object, "start.next", null), Arrays.asList("wait_android_app_event", "wait_ios_app_event"));
+        Assert.assertEquals(YamlUtils.getAsList(object, "start.next", null), Arrays.asList("wait_android_app_event", "wait_ios_app_event"));
     }
 }

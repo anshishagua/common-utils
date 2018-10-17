@@ -1,6 +1,8 @@
 package com.anshishagua.utils;
 
 import com.alibaba.fastjson.JSON;
+import org.apache.commons.lang3.StringUtils;
+import org.yaml.snakeyaml.Yaml;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -104,15 +106,19 @@ public class YamlUtils {
         int end = string.indexOf("]");
         String key = null;
 
-        while (start >= 0 && end >= 0 && start < end) {
-            if (key == null) {
-                key = string.substring(0, start);
+        if (start >= 0) {
+            while (start >= 0 && end >= 0 && start < end) {
+                if (key == null) {
+                    key = string.substring(0, start);
+                }
+
+                list.add(Integer.parseInt(string.substring(start + 1, end)));
+
+                start = string.indexOf("[", end + 1);
+                end = string.indexOf("]", end + 1);
             }
-
-            list.add(Integer.parseInt(string.substring(start + 1, end)));
-
-            start = string.indexOf("[", end + 1);
-            end = string.indexOf("]", end + 1);
+        } else {
+            key = string;
         }
 
         return new KeyIndex(key, list);
@@ -122,52 +128,53 @@ public class YamlUtils {
         Objects.requireNonNull(path);
         Objects.requireNonNull(object);
 
-        String [] fields = path.split("\\.");
+        String [] fields = path.split("\\.", -1);
 
         T result = null;
 
         for (int i = 0; i < fields.length; ++i) {
             String field = fields[i];
-            int index = 0;
-            int start = field.indexOf("[");
-            int end = field.indexOf("]");
-            boolean hasIndex = false;
 
-            if (start >= 0 && end >= 0 && start < end) {
-                try {
-                    index = Integer.parseInt(field.substring(start + 1, end));
-                } catch (NumberFormatException ex) {
-                    throw new IllegalArgumentException();
-                }
-
-                field = field.substring(0, start);
-
-                hasIndex = true;
+            if (StringUtils.isBlank(field)) {
+                throw new IllegalArgumentException("Field could not be empty");
             }
 
-            if (object == null || !(object instanceof Map)) {
-                result = defaultValue;
-                break;
+            KeyIndex keyIndex = getKeyIndex(field);
+
+            if (object == null) {
+                return defaultValue;
             }
 
-            Map<String, Object> map = (Map<String, Object>) object;
-
-            object = map.get(field);
-
-            if (hasIndex) {
-                if (object == null || !(object instanceof List)) {
-                    result = defaultValue;
-                    break;
+            if (StringUtils.isNotBlank(keyIndex.getKey())) {
+                if (!(object instanceof Map)) {
+                    return defaultValue;
                 }
 
+                object = ((Map<String, Object>) object).get(keyIndex.getKey());
+            }
+
+            if (!keyIndex.getIndexes().isEmpty()) {
                 List<Object> list = (List<Object>) object;
 
-                if (index >= list.size() || -index > list.size()) {
-                    result = defaultValue;
-                    break;
-                }
+                for (int j = 0; j < keyIndex.getIndexes().size(); ++j) {
+                    int index = keyIndex.getIndexes().get(j);
 
-                object = index >= 0 ? list.get(index) : list.get(list.size() + index);
+                    if (index >= list.size() || -index > list.size()) {
+                        return defaultValue;
+                    }
+
+                    object = index >= 0 ? list.get(index) : list.get(list.size() + index);
+
+                    if (j == keyIndex.getIndexes().size() - 1) {
+                        break;
+                    }
+
+                    if (!(object instanceof List)) {
+                        return defaultValue;
+                    }
+
+                    list = (List<Object>) object;
+                }
             }
 
             if (i == fields.length - 1) {
@@ -179,6 +186,10 @@ public class YamlUtils {
     }
 
     public static void main(String [] args) {
-        System.out.println(getKeyIndex("aaa[1][1][2]"));
+        Yaml yaml = new Yaml();
+
+        Object object = yaml.load(YamlUtils.class.getClassLoader().getResourceAsStream("abc.yaml"));
+
+        System.out.println(getAsString(object, "[0][0]", null));
     }
 }
