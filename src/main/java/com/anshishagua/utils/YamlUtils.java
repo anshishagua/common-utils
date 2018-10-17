@@ -2,6 +2,7 @@ package com.anshishagua.utils;
 
 import com.alibaba.fastjson.JSON;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -70,6 +71,53 @@ public class YamlUtils {
         return get(object, path) != null;
     }
 
+    private static class KeyIndex {
+        private String key;
+        private List<Integer> indexes;
+
+        public KeyIndex(String key, List<Integer> indexes) {
+            this.key = key;
+            this.indexes = indexes;
+        }
+
+        public List<Integer> getIndexes() {
+            return indexes;
+        }
+
+        public String getKey() {
+            return key;
+        }
+
+        @Override
+        public String toString() {
+            return "KeyIndex{" +
+                    "key='" + key + '\'' +
+                    ", indexes=" + indexes +
+                    '}';
+        }
+    }
+
+    private static KeyIndex getKeyIndex(String string) {
+        List<Integer> list = new ArrayList<>();
+
+        int start = string.indexOf("[");
+        int end = string.indexOf("]");
+        String key = null;
+
+        while (start >= 0 && end >= 0 && start < end) {
+            if (key == null) {
+                key = string.substring(0, start);
+            }
+
+            list.add(Integer.parseInt(string.substring(start + 1, end)));
+
+            start = string.indexOf("[", end + 1);
+            end = string.indexOf("]", end + 1);
+        }
+
+        return new KeyIndex(key, list);
+    }
+
     public static <T> T get(Object object, String path, T defaultValue) {
         Objects.requireNonNull(path);
         Objects.requireNonNull(object);
@@ -128,5 +176,9 @@ public class YamlUtils {
         }
 
         return result;
+    }
+
+    public static void main(String [] args) {
+        System.out.println(getKeyIndex("aaa[1][1][2]"));
     }
 }
