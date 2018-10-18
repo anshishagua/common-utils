@@ -1,0 +1,13 @@
+{
+  "table_name": "user_info",
+  "file_format": "csv",
+  "table_location": "/Users/xiaoli/IdeaProjects/common-utils/src/main/resources/user_info/date=${date}/",
+  "table_partitions": [
+    {"field_name": "date", "field_type": "string"}
+  ],
+  "table_fields": [
+    {"field_name": "id", "field_type": "long", "nullable": true, "is_primary_key": true},
+    {"field_name": "name", "field_type": "string", "nullable": true},
+    {"field_name": "age", "field_type": "int", "nullable": true}
+  ]
+}

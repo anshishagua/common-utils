@@ -448,5 +448,6 @@ join_end:
 
 
 aaa:
-  - werewr
-      -bbbb
+  -
+    - aaa
+  - bbbb

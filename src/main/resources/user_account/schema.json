@@ -1,0 +1,14 @@
+{
+  "table_name": "user_account",
+  "file_format": "csv",
+  "table_location": "/Users/xiaoli/IdeaProjects/common-utils/src/main/resources/user_account/date=${date}/",
+  "table_partitions": [
+    {"field_name": "date", "field_type": "string"}
+  ],
+  "table_fields": [
+    {"field_name": "id", "field_type": "long", "nullable": true, "is_primary_key": true},
+    {"field_name": "user_id", "field_type": "long", "nullable": true},
+    {"field_name": "account_id", "field_type": "long", "nullable": true},
+    {"field_name": "balance", "field_type": "double", "nullable": true}
+  ]
+}

@@ -188,8 +188,8 @@ public class YamlUtils {
     public static void main(String [] args) {
         Yaml yaml = new Yaml();
 
-        Object object = yaml.load(YamlUtils.class.getClassLoader().getResourceAsStream("abc.yaml"));
+        Object object = yaml.load(YamlUtils.class.getClassLoader().getResourceAsStream("test.yaml"));
 
-        System.out.println(getAsString(object, "[0][0]", null));
+        System.out.println(getAsString(object, "aaa[0][0]", null));
     }
 }
