@@ -4,11 +4,7 @@ import com.anshishagua.object.JoinType;
 import com.anshishagua.object.Schema;
 import com.anshishagua.object.TableField;
 import com.anshishagua.object.Tuple2;
-import com.anshishagua.utils.DateTimeUtils;
-import com.anshishagua.utils.ParamUtils;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.FilterFunction;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 
@@ -36,14 +32,29 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.locks.Condition;
 import java.util.stream.Collectors;
 
 public class SparkUtils {
     public static final int DEFAULT_NUM_PARTITION = 5;
 
-    public static Dataset<Row> join(Dataset<Row> a, Dataset<Row> b, String ... joinFields) {
-        return join(a, b, JoinType.INNER, joinFields);
+    /*
+    public static Dataset<Row> join(List<Dataset<Row>> datasets, List<String> joinColumns) {
+        Dataset<Row> result = null;
+
+        for (Dataset dataset : datasets) {
+            if (result == null) {
+                result = dataset;
+            } else {
+                Column joinCondition = null;
+
+                result = result.join(dataset, )
+            }
+        }
+    }
+    */
+
+    public static Dataset<Row> join(Dataset<Row> a, Dataset<Row> b, String ... joinColumns) {
+        return join(a, b, JoinType.INNER, joinColumns);
     }
 
     public static Dataset<Row> join(Dataset<Row> a, Dataset<Row> b, JoinType joinType, String ... joinColumns) {
@@ -87,15 +98,15 @@ public class SparkUtils {
         return dataset;
     }
 
-    public static Dataset<Row> join(Dataset<Row> a, Dataset<Row> b, List<Tuple2<String>> joinFields) {
-        return join(a, b, JoinType.INNER, joinFields);
+    public static Dataset<Row> join(Dataset<Row> a, Dataset<Row> b, List<Tuple2<String>> joinColumns) {
+        return join(a, b, JoinType.INNER, joinColumns);
     }
 
-    public static Dataset<Row> join(Dataset<Row> a, Dataset<Row> b, JoinType joinType, List<Tuple2<String>> joinFields) {
+    public static Dataset<Row> join(Dataset<Row> a, Dataset<Row> b, JoinType joinType, List<Tuple2<String>> joinColumns) {
         Column joinCondition = null;
 
-        for (Tuple2<String> joinField : joinFields) {
-            Column condition = a.col(joinField.getFirst()).equalTo(b.col(joinField.getSecond()));
+        for (Tuple2<String> column : joinColumns) {
+            Column condition = a.col(column.getFirst()).equalTo(b.col(column.getSecond()));
 
             if (joinCondition == null) {
                 joinCondition = condition;
@@ -227,6 +238,7 @@ public class SparkUtils {
         //userAccount.show();
 
         List<Tuple2<String>> list = new ArrayList<>();
+
         list.add(new Tuple2<>("id", "user_id"));
         Dataset<Row> result = join(userInfo, userAccount, JoinType.INNER, list)
                 .groupBy(userInfo.col("id"))
@@ -238,5 +250,36 @@ public class SparkUtils {
 
         result.printSchema();
         result.show();
+
+        System.out.println(spark.sparkContext().applicationId());
+
+        userInfo.join(userAccount, userInfo.col("id").equalTo(userAccount.col("user_id")))
+                .show();
+
+        Dataset<Row> aggregation = join(userInfo, userAccount, Arrays.asList(new Tuple2<>("id", "user_id")))
+                .groupBy(userInfo.col("id"))
+                .agg(sum(userAccount.col("balance")).alias("value"));
+
+        result = join(userInfo, aggregation, "id");
+
+        result = result.filter(userInfo.col("age").gt(34))
+                .filter(userInfo.col("age").lt(36));
+
+        result.registerTempTable("result");
+        result.printSchema();
+        result = result.filter("value >= 100000").select("id");
+
+        result = result.withColumn("tag_name", lit("rich_man"))
+                .withColumn("tag_id", lit(111L));
+
+        result.printSchema();
+        result.show();
+
+        schema = Schema.load(new FileInputStream("/Users/xiaoli/IdeaProjects/common-utils/src/main/resources/tags/schema.json"));
+
+        map.put("date", "2018-09-10");
+        map.put("tag_id", String.valueOf(111));
+
+        save(result, schema, map, 3);
     }
 }

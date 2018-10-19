@@ -1,0 +1,20 @@
+user_info(
+id long,
+name string,
+age int
+)
+
+user_account(
+id long,
+user_id long,
+account_id long,
+balance double
+)
+
+
+
+a = user_info.age >= 30 and user_info.age <= 40 and sum(user_account.balance) >= 10000000
+
+a = a.
+
+a = user_info.id, sum(user_account.balance) as value

@@ -1,0 +1,14 @@
+{
+  "expression": "a.id > 30",
+  "plans": [
+    {
+      "op": ">",
+      "children": [
+        {
+          "op": ""
+        }
+      ]
+    }
+  ],
+  "aaa": true
+}
