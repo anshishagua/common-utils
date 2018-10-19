@@ -1,16 +1,23 @@
 package com.anshishagua.utils;
 
+import com.anshishagua.object.JoinType;
 import com.anshishagua.object.Schema;
 import com.anshishagua.object.TableField;
+import com.anshishagua.object.Tuple2;
 import com.anshishagua.utils.DateTimeUtils;
 import com.anshishagua.utils.ParamUtils;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.FilterFunction;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 
+import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.count;
 import static org.apache.spark.sql.functions.expr;
 import static org.apache.spark.sql.functions.lit;
+import static org.apache.spark.sql.functions.sum;
+
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SaveMode;
@@ -22,13 +29,85 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.locks.Condition;
 import java.util.stream.Collectors;
 
 public class SparkUtils {
     public static final int DEFAULT_NUM_PARTITION = 5;
+
+    public static Dataset<Row> join(Dataset<Row> a, Dataset<Row> b, String ... joinFields) {
+        return join(a, b, JoinType.INNER, joinFields);
+    }
+
+    public static Dataset<Row> join(Dataset<Row> a, Dataset<Row> b, JoinType joinType, String ... joinColumns) {
+        Dataset<Row> dataset = null;
+
+        Column joinCondition = null;
+
+        for (String field : joinColumns) {
+            Column condition = a.col(field).equalTo(b.col(field));
+
+            if (joinCondition == null) {
+                joinCondition = condition;
+            } else {
+                joinCondition = joinCondition.and(condition);
+            }
+        }
+
+        dataset = a.join(b, joinCondition, joinType.getValue());
+
+        Set<String> aColumns = new LinkedHashSet<>();
+        for (String column : a.columns()) {
+            aColumns.add(column);
+        }
+
+        Set<String> bColumns = new LinkedHashSet<>();
+        for (String column : a.columns()) {
+            bColumns.add(column);
+        }
+
+        Set<String> commonColumns = new LinkedHashSet<>();
+        for (String joinColumn : joinColumns) {
+            commonColumns.add(joinColumn);
+        }
+
+        bColumns.removeAll(commonColumns);
+
+        for (String column : commonColumns) {
+            dataset = dataset.drop(b.col(column));
+        }
+
+        return dataset;
+    }
+
+    public static Dataset<Row> join(Dataset<Row> a, Dataset<Row> b, List<Tuple2<String>> joinFields) {
+        return join(a, b, JoinType.INNER, joinFields);
+    }
+
+    public static Dataset<Row> join(Dataset<Row> a, Dataset<Row> b, JoinType joinType, List<Tuple2<String>> joinFields) {
+        Column joinCondition = null;
+
+        for (Tuple2<String> joinField : joinFields) {
+            Column condition = a.col(joinField.getFirst()).equalTo(b.col(joinField.getSecond()));
+
+            if (joinCondition == null) {
+                joinCondition = condition;
+            } else {
+                joinCondition = joinCondition.and(condition);
+            }
+        }
+
+        Dataset<Row> dataset = a.join(b, joinCondition, joinType.getValue());
+
+        return dataset;
+    }
 
     public static void save(Dataset dataset, Schema schema, Map<String, String> params) {
         save(dataset, schema, params, DEFAULT_NUM_PARTITION);
@@ -138,7 +217,7 @@ public class SparkUtils {
 
         Dataset<Row> userInfo = load(spark, schema, map);
 
-        System.out.println(userInfo.count());
+        //System.out.println(userInfo.count());
 
         schemaFile = "/Users/xiaoli/IdeaProjects/common-utils/src/main/resources/user_account/schema.json";
 
@@ -147,11 +226,17 @@ public class SparkUtils {
 
         //userAccount.show();
 
-        //Dataset<Row> result = userInfo.join(userAccount,
-        //        userInfo.col("id").equalTo(userAccount.col("user_id")), "left_outer").groupBy();
+        List<Tuple2<String>> list = new ArrayList<>();
+        list.add(new Tuple2<>("id", "user_id"));
+        Dataset<Row> result = join(userInfo, userAccount, JoinType.INNER, list)
+                .groupBy(userInfo.col("id"))
+                .agg(sum(userAccount.col("balance")).alias("total_balance"),
+                        count(userAccount.col("id")).alias("num_account"))
+                .orderBy(expr("total_balance").desc());
 
-        //result = result.drop("id[0]");
-        //result.printSchema();
-        //result.show();
+        result = result.withColumn("avg_balance", col("total_balance").divide(col("num_account")));
+
+        result.printSchema();
+        result.show();
     }
 }
