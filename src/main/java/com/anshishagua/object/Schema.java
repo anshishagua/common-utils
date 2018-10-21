@@ -105,7 +105,7 @@ public class Schema implements Serializable {
     }
 
     public static void main(String [] args) throws IOException {
-        Schema schema = Schema.load(new FileInputStream("/Users/xiaoli/IdeaProjects/common-utils/src/main/resources/schema.json"));
+        Schema schema = Schema.load(new FileInputStream("/Users/lixiao/code/common-utils/src/main/resources/schema.json"));
 
         System.out.println(schema);
     }

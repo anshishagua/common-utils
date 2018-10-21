@@ -9,6 +9,7 @@ import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 
 import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.concat;
 import static org.apache.spark.sql.functions.count;
 import static org.apache.spark.sql.functions.expr;
 import static org.apache.spark.sql.functions.lit;
@@ -217,10 +218,18 @@ public class SparkUtils {
         return dataset;
     }
 
+    public static Dataset<Row> emptyDataset(SparkSession spark, Schema schema) {
+        List<TableField> tableFields = schema.getTableFields();
+
+        StructType structType = DataTypes.createStructType(tableFields.stream().map(it -> TypeUtils.toStructField(it)).collect(Collectors.toList()));
+
+        return spark.createDataFrame(new ArrayList<>(), structType);
+    }
+
     public static void main(String [] args) throws Exception {
         SparkSession spark = SparkSession.builder().appName("hello").master("local[*]").getOrCreate();
 
-        String schemaFile = "/Users/xiaoli/IdeaProjects/common-utils/src/main/resources/user_info/schema.json";
+        String schemaFile = "/Users/lixiao/code/common-utils/src/main/resources/user_info/schema.json";
 
         Schema schema = Schema.load(new FileInputStream(schemaFile));
         Map<String, String> map = new HashMap<>();
@@ -230,7 +239,7 @@ public class SparkUtils {
 
         //System.out.println(userInfo.count());
 
-        schemaFile = "/Users/xiaoli/IdeaProjects/common-utils/src/main/resources/user_account/schema.json";
+        schemaFile = "/Users/lixiao/code/common-utils/src/main/resources/user_account/schema.json";
 
         schema = Schema.load(new FileInputStream(schemaFile));
         Dataset<Row> userAccount = load(spark, schema, map);
@@ -275,11 +284,16 @@ public class SparkUtils {
         result.printSchema();
         result.show();
 
-        schema = Schema.load(new FileInputStream("/Users/xiaoli/IdeaProjects/common-utils/src/main/resources/tags/schema.json"));
+        schema = Schema.load(new FileInputStream("/Users/lixiao/code/common-utils/src/main/resources/tags/schema.json"));
 
         map.put("date", "2018-09-10");
         map.put("tag_id", String.valueOf(111));
 
         save(result, schema, map, 3);
+
+        Map<String, Dataset<Row>> datasetMap = new HashMap<>();
+
+        //a.id
+        datasetMap.put("aggregation_on_user_info", result);
     }
 }
