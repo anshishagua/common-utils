@@ -3,27 +3,42 @@ package com.anshishagua.utils;
 import com.alibaba.fastjson.JSON;
 import com.anshishagua.object.ApplicationIDCreateResponse;
 import com.anshishagua.object.ApplicationStatus;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.util.ClassUtil;
+import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.hadoop.yarn.api.records.LocalResourceType;
+import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerLaunchContextPBImpl;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.apache.spark.deploy.Client;
+import org.apache.spark.deploy.SparkSubmit;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -106,6 +121,117 @@ public class YarnUtils {
         return ApplicationId.newInstance(Long.parseLong(fields[1]), Integer.parseInt(fields[2]));
     }
 
+    private static ContainerLaunchContext createAMContainerLaunchContext(Configuration conf, ApplicationId appId) throws IOException {
+        Map<String, LocalResource> localResources = new HashMap<>();
+        FileSystem fs = FileSystem.get(conf);
+        String thisJar = ClassUtil.findContainingJar(Client.class);
+        String thisJarBaseName = FilenameUtils.getName(thisJar);
+
+        addToLocalResources(fs, thisJar, thisJarBaseName, appId.toString(),
+                localResources);
+
+        //Set CLASSPATH environment
+        Map<String, String> env = new HashMap<>();
+        StringBuilder classPathEnv = new StringBuilder(
+                ApplicationConstants.Environment.CLASSPATH.$());
+        classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
+        classPathEnv.append("./*");
+        for (String c : conf
+                .getStrings(
+                        YarnConfiguration.YARN_APPLICATION_CLASSPATH,
+                        YarnConfiguration.DEFAULT_YARN_CROSS_PLATFORM_APPLICATION_CLASSPATH)) {
+            classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
+            classPathEnv.append(c.trim());
+        }
+
+        if (conf.getBoolean(YarnConfiguration.IS_MINI_YARN_CLUSTER, false)) {
+            classPathEnv.append(':');
+            classPathEnv.append(System.getProperty("java.class.path"));
+        }
+        env.put(ApplicationConstants.Environment.CLASSPATH.name(), classPathEnv.toString());
+
+        //Build the execute command
+        List<String> commands = new LinkedList<>();
+        StringBuilder command = new StringBuilder();
+        command.append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java  ");
+        command.append("-Dlog4j.configuration=container-log4j.properties ");
+        command.append("-Dyarn.app.container.log.dir=" +
+                ApplicationConstants.LOG_DIR_EXPANSION_VAR + " ");
+        command.append("-Dyarn.app.container.log.filesize=0 ");
+        command.append("-Dhadoop.root.logger=INFO,CLA ");
+        command.append("trumanz.yarnExample.ApplicationMaster ");
+        command.append("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout ");
+        command.append("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr ");
+        commands.add(command.toString());
+
+        ContainerLaunchContext amContainer = ContainerLaunchContext
+                .newInstance(localResources, env, commands, null, null, null);
+        return amContainer;
+    }
+
+    private static void addToLocalResources(FileSystem fs, String fileSrcPath,
+                                            String fileDstPath, String appId,
+                                            Map<String, LocalResource> localResources)
+            throws IllegalArgumentException, IOException {
+        String suffix = "mytest" + "/" + appId + "/" + fileDstPath;
+        Path dst = new Path(fs.getHomeDirectory(), suffix);
+        fs.copyFromLocalFile(new Path(fileSrcPath), dst);
+        FileStatus scFileStatus = fs.getFileStatus(dst);
+        LocalResource scRsrc = LocalResource.newInstance(
+                ConverterUtils.getYarnUrlFromPath(dst), LocalResourceType.FILE,
+                LocalResourceVisibility.APPLICATION, scFileStatus.getLen(),
+                scFileStatus.getModificationTime());
+
+        localResources.put(fileDstPath, scRsrc);
+    }
+
+    public static void submitApplication() throws Exception {
+        YarnClient yarnClient = YarnClient.createYarnClient();
+        Configuration conf = new YarnConfiguration();
+
+        conf.set(YarnConfiguration.RM_WEBAPP_ADDRESS, "localhost:8088");
+        conf.setBoolean(YarnConfiguration.YARN_MINICLUSTER_FIXED_PORTS,true);
+
+        yarnClient.init(conf);
+        yarnClient.start();
+
+        //set application name
+        YarnClientApplication yarnClientApplication = yarnClient.createApplication();
+        ApplicationSubmissionContext context = yarnClientApplication.getApplicationSubmissionContext();
+        String applicationName = "example";
+        context.setApplicationName(applicationName);
+
+        //set queue
+        String queue = "default";
+        context.setQueue(queue);
+
+        //set priority
+        Priority priority = Records.newRecord(Priority.class);
+        priority.setPriority(0);
+        context.setPriority(priority);
+
+        //set am container
+        ContainerLaunchContext amContainer = createAMContainerLaunchContext(conf, yarnClientApplication.getNewApplicationResponse().getApplicationId());
+        context.setAMContainerSpec(amContainer);
+
+        boolean isUnmanagedAM = false;
+        context.setUnmanagedAM(isUnmanagedAM);
+
+        boolean cancelTokensWhenComplete = false;
+        context.setCancelTokensWhenComplete(cancelTokensWhenComplete);
+
+        int maxAppAttempts = 3;
+        context.setMaxAppAttempts(maxAppAttempts);
+
+        Resource resource = Resource.newInstance(1111, 1);
+        context.setResource(resource);
+
+        String applicationType = "SPARK";
+        context.setApplicationType(applicationType);
+
+        yarnClient.submitApplication(context);
+    }
+
     public static void main(String [] args) throws Exception {
         String applicationId = "application_1540192469362_0001";
 
@@ -144,45 +270,5 @@ public class YarnUtils {
         System.out.println(report.getApplicationType());
         System.out.println(report.getTrackingUrl());
         System.out.println(report.getYarnApplicationState().name());
-
-        YarnClientApplication yarnClientApplication = yarnClient.createApplication();
-        ApplicationSubmissionContext context = yarnClientApplication.getApplicationSubmissionContext();
-        String applicationName = "example";
-        context.setApplicationName(applicationName);
-
-        String queue = "default";
-        context.setQueue(queue);
-
-        Priority priority = Priority.newInstance(0);
-        context.setPriority(priority);
-
-        //Map<String, LocalResource> localResourceMap = new HashMap<>();
-        //File appMasterJarFile = new File("xxxx");
-
-
-        //localResourceMap.put(appMasterJarFile.getName(),toLocalResource(fs,appResponse.getApplicationId().toString(),
-
-        //        appMasterJarFile));
-        Map<String, String> environment = new HashMap<>();
-        List<String> commands = new ArrayList<>();
-        ContainerLaunchContext applicationMasterContainer = Records.newRecord(ContainerLaunchContext.class);
-
-        boolean isUnmanagedAM = false;
-        context.setUnmanagedAM(isUnmanagedAM);
-
-        boolean cancelTokensWhenComplete = false;
-        context.setCancelTokensWhenComplete(cancelTokensWhenComplete);
-
-        int maxAppAttempts = 3;
-        context.setMaxAppAttempts(maxAppAttempts);
-
-        Resource resource = Resource.newInstance(1111, 1);
-        context.setResource(resource);
-
-        String applicationType = "SPARK";
-        context.setApplicationType(applicationType);
-
-        yarnClient.submitApplication(context);
-
     }
 }
