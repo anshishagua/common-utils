@@ -13,16 +13,16 @@ public class SparkSubmitUtils {
         SystemUtils.setEnv("name", "benben");
 
         System.out.println(System.getenv("name"));
-        SystemUtils.setEnv("HADOOP_CONF_DIR", System.getProperty("HADOOP_HOME") + "/etc");
+        //SystemUtils.setEnv("HADOOP_CONF_DIR", System.getProperty("HADOOP_HOME") + "/etc");
 
 
         String[] args = new String[] {
                 "--class", "org.apache.spark.examples.SparkPi",
                 "--master", "yarn",
+                "--name", "xxxwerqwerqwer",
                 "--deploy-mode", "cluster",
-                System.getenv("SPARK_HOME") + "/examples/jars/spark-examples_2.11-2.0.2.jar",
-
-                "--arg", "3", "--arg", "yarn-cluster"};
+                System.getenv("SPARK_HOME") + "/examples/jars/spark-examples_2.11-2.2.1.jar",
+                "3"};
 
         Configuration configuration = new Configuration();
         System.setProperty("SPARK_YARN_MODE", "true");
@@ -30,10 +30,6 @@ public class SparkSubmitUtils {
         configuration.set("mapreduce.jobtracker.address", "host:port");
         SparkConf sparkConf = new SparkConf();
         sparkConf.setAppName("example");
-
-        //ClientArguments cArgs = new ClientArguments(args);  // getting constructor error
-        //Client client = new Client(cArgs, config, sparkConf); // getting constructor error
-        //client.run();
 
         SparkSubmit.main(args);
     }

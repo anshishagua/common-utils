@@ -11,6 +11,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ClassUtil;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -26,6 +27,7 @@ import org.apache.hadoop.yarn.api.records.impl.pb.ContainerLaunchContextPBImpl;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.apache.spark.deploy.yarn.Client;
@@ -37,6 +39,8 @@ import org.springframework.web.client.RestTemplate;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -165,9 +169,74 @@ public class YarnUtils {
 
         //set am container
         ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
-        List<String> commands = new ArrayList<>();
+        Map<String, LocalResource> localResourceMap = new HashMap<>();
+        LocalResource resource = Records.newRecord(LocalResource.class);
+
+        Path jarPath = new Path("/usr/local/spark/spark-2.2.1-bin-hadoop2.7/examples/jars/spark-examples_2.11-2.2.1.jar");
+
+        jarPath = FileSystem.get(conf).makeQualified(jarPath);
+        FileStatus fileStatus = FileSystem.get(conf).getFileStatus(jarPath);
+        resource.setResource(ConverterUtils.getYarnUrlFromPath(jarPath));
+        resource.setSize(fileStatus.getLen());
+        resource.setTimestamp(fileStatus.getModificationTime());
+        resource.setType(LocalResourceType.FILE);
+        resource.setVisibility(LocalResourceVisibility.APPLICATION);
+        localResourceMap.put("__app__.jar", resource);
+
+        jarPath = new Path("/Users/lixiao/Desktop/spark-libs.zip");
+        jarPath = FileSystem.get(conf).makeQualified(jarPath);
+        fileStatus = FileSystem.get(conf).getFileStatus(jarPath);
+        LocalResource resource1 = Records.newRecord(LocalResource.class);
+        resource1.setResource(ConverterUtils.getYarnUrlFromPath(jarPath));
+        resource1.setSize(fileStatus.getLen());
+        resource1.setTimestamp(fileStatus.getModificationTime());
+        resource1.setType(LocalResourceType.FILE);
+        resource1.setVisibility(LocalResourceVisibility.APPLICATION);
+        localResourceMap.put("__spark_libs__", resource1);
+
+        amContainer.setLocalResources(localResourceMap);
+        List<String> commands =
+                Collections.singletonList("$JAVA_HOME/bin/java -server -Xmx1024m -Djava.io.tmpdir=$PWD/tmp " +
+                "-Dspark.yarn.app.container.log.dir=<LOG_DIR> " +
+                "org.apache.spark.deploy.yarn.ApplicationMaster " +
+                "--class 'org.apache.spark.examples.SparkPi' " +
+                "--jar file:/usr/local/spark/spark-2.2.1-bin-hadoop2.7/examples/jars/spark-examples_2.11-2.2.1.jar " +
+                "--arg '3' " +
+                "--properties-file $PWD/__spark_conf__/__spark_conf__.properties " +
+                "1> <LOG_DIR>/stdout 2> " +
+                "<LOG_DIR>/stderr");
         amContainer.setCommands(commands);
-                //createAMContainerLaunchContext(conf, yarnClientApplication.getNewApplicationResponse().getApplicationId());
+
+
+        Map<String, String> appMasterEnv = new HashMap<>();
+        String classPathEnv = "./*";
+        appMasterEnv.put("CLASSPATH", "$PWD:$PWD/__spark_conf__:$PWD/__spark_libs__/*:$HADOOP_CONF_DIR:$HADOOP_COMMON_HOME/share/hadoop/common/*:$HADOOP_COMMON_HOME/share/hadoop/common/lib/*:$HADOOP_HDFS_HOME/share/hadoop/hdfs/*:$HADOOP_HDFS_HOME/share/hadoop/hdfs/lib/*:$HADOOP_YARN_HOME/share/hadoop/yarn/*:$HADOOP_YARN_HOME/share/hadoop/yarn/lib/*:$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/*:$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/lib/*");
+
+        String[] defaultYarnAppClasspath = conf.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH);
+        System.out.println("*** YARN_APPLICATION_CLASSPATH: " +
+                Arrays.asList(defaultYarnAppClasspath != null ? defaultYarnAppClasspath : new String[]{}));
+
+        for (String c : conf.getStrings(
+                YarnConfiguration.YARN_APPLICATION_CLASSPATH,
+                YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
+            System.out.println("--> " + c);
+            Apps.addToEnvironment(appMasterEnv, ApplicationConstants.Environment.CLASSPATH.name(),
+                    c.trim());
+        }
+
+
+
+//      Apps.addToEnvironment(appMasterEnv,
+//          Environment.CLASSPATH.name(),
+//          Environment.PWD.$() + File.separator + "*");
+
+        System.out.println("*** APP MASTER ENV: " +appMasterEnv);
+        appMasterEnv.put("SPARK_YARN_MODE", "true");
+        appMasterEnv.put("SPARK_USER", UserGroupInformation.getCurrentUser().getShortUserName());
+
+        amContainer.setEnvironment(appMasterEnv);
+
+
         context.setAMContainerSpec(amContainer);
 
         boolean isUnmanagedAM = false;
@@ -179,13 +248,13 @@ public class YarnUtils {
         int maxAppAttempts = 3;
         context.setMaxAppAttempts(maxAppAttempts);
 
-        Resource resource = Resource.newInstance(1111, 1);
-        context.setResource(resource);
-
         String applicationType = "SPARK";
         context.setApplicationType(applicationType);
 
-        //yarnClient.submitApplication(context);
+
+        context.setResource(Resource.newInstance(1000, 1));
+
+        yarnClient.submitApplication(context);
     }
 
     public static void main(String [] args) throws Exception {
@@ -203,6 +272,14 @@ public class YarnUtils {
 
         yarnClient.init(conf);
         yarnClient.start();
+
+        System.out.println(yarnClient.getApplications());
+
+        Client client = null;
+
+        for (ApplicationReport report : yarnClient.getApplications()) {
+
+        }
 
         submitApplication();
     }
