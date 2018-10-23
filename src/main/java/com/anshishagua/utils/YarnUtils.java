@@ -28,7 +28,7 @@ import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
-import org.apache.spark.deploy.Client;
+import org.apache.spark.deploy.yarn.Client;
 import org.apache.spark.deploy.SparkSubmit;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -121,54 +121,6 @@ public class YarnUtils {
         return ApplicationId.newInstance(Long.parseLong(fields[1]), Integer.parseInt(fields[2]));
     }
 
-    private static ContainerLaunchContext createAMContainerLaunchContext(Configuration conf, ApplicationId appId) throws IOException {
-        Map<String, LocalResource> localResources = new HashMap<>();
-        FileSystem fs = FileSystem.get(conf);
-        String thisJar = ClassUtil.findContainingJar(Client.class);
-        String thisJarBaseName = FilenameUtils.getName(thisJar);
-
-        addToLocalResources(fs, thisJar, thisJarBaseName, appId.toString(),
-                localResources);
-
-        //Set CLASSPATH environment
-        Map<String, String> env = new HashMap<>();
-        StringBuilder classPathEnv = new StringBuilder(
-                ApplicationConstants.Environment.CLASSPATH.$());
-        classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
-        classPathEnv.append("./*");
-        for (String c : conf
-                .getStrings(
-                        YarnConfiguration.YARN_APPLICATION_CLASSPATH,
-                        YarnConfiguration.DEFAULT_YARN_CROSS_PLATFORM_APPLICATION_CLASSPATH)) {
-            classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
-            classPathEnv.append(c.trim());
-        }
-
-        if (conf.getBoolean(YarnConfiguration.IS_MINI_YARN_CLUSTER, false)) {
-            classPathEnv.append(':');
-            classPathEnv.append(System.getProperty("java.class.path"));
-        }
-        env.put(ApplicationConstants.Environment.CLASSPATH.name(), classPathEnv.toString());
-
-        //Build the execute command
-        List<String> commands = new LinkedList<>();
-        StringBuilder command = new StringBuilder();
-        command.append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java  ");
-        command.append("-Dlog4j.configuration=container-log4j.properties ");
-        command.append("-Dyarn.app.container.log.dir=" +
-                ApplicationConstants.LOG_DIR_EXPANSION_VAR + " ");
-        command.append("-Dyarn.app.container.log.filesize=0 ");
-        command.append("-Dhadoop.root.logger=INFO,CLA ");
-        command.append("trumanz.yarnExample.ApplicationMaster ");
-        command.append("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout ");
-        command.append("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr ");
-        commands.add(command.toString());
-
-        ContainerLaunchContext amContainer = ContainerLaunchContext
-                .newInstance(localResources, env, commands, null, null, null);
-        return amContainer;
-    }
-
     private static void addToLocalResources(FileSystem fs, String fileSrcPath,
                                             String fileDstPath, String appId,
                                             Map<String, LocalResource> localResources)
@@ -195,9 +147,10 @@ public class YarnUtils {
         yarnClient.init(conf);
         yarnClient.start();
 
-        //set application name
         YarnClientApplication yarnClientApplication = yarnClient.createApplication();
         ApplicationSubmissionContext context = yarnClientApplication.getApplicationSubmissionContext();
+
+        //set application name
         String applicationName = "example";
         context.setApplicationName(applicationName);
 
@@ -211,7 +164,10 @@ public class YarnUtils {
         context.setPriority(priority);
 
         //set am container
-        ContainerLaunchContext amContainer = createAMContainerLaunchContext(conf, yarnClientApplication.getNewApplicationResponse().getApplicationId());
+        ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
+        List<String> commands = new ArrayList<>();
+        amContainer.setCommands(commands);
+                //createAMContainerLaunchContext(conf, yarnClientApplication.getNewApplicationResponse().getApplicationId());
         context.setAMContainerSpec(amContainer);
 
         boolean isUnmanagedAM = false;
@@ -229,46 +185,25 @@ public class YarnUtils {
         String applicationType = "SPARK";
         context.setApplicationType(applicationType);
 
-        yarnClient.submitApplication(context);
+        //yarnClient.submitApplication(context);
     }
 
     public static void main(String [] args) throws Exception {
         String applicationId = "application_1540192469362_0001";
 
-        //System.out.println(applicationStatus(applicationId));
-
         applicationId = "application_1540192469362_0001";
         String yarnHost = "localhost";
         int yarnPort = 8088;
 
-        //killApplication(yarnHost, yarnPort, applicationId, "lixiao");
-
-        //System.out.println(buildRequestUrl("aaa", 111, "aaa/%s/%s", "a", "b"));
-
-        //System.out.println(applicationStatus(yarnHost, yarnPort, applicationId));
-
         YarnClient yarnClient = YarnClient.createYarnClient();
         Configuration conf = new YarnConfiguration();
 
-        //conf.set(YarnConfiguration.RM_ADDRESS,"localhost:8032");
-        //conf.set(YarnConfiguration.RM_SCHEDULER_ADDRESS,"localhost:8030");
-        //conf.set(YarnConfiguration.RM_RESOURCE_TRACKER_ADDRESS,"localhost:8031");
-        conf.set(YarnConfiguration.RM_WEBAPP_ADDRESS,"localhost:8088");
+        conf.set(YarnConfiguration.RM_WEBAPP_ADDRESS, yarnHost + ":" + yarnPort);
         conf.setBoolean(YarnConfiguration.YARN_MINICLUSTER_FIXED_PORTS,true);
 
         yarnClient.init(conf);
         yarnClient.start();
-        //YarnClientApplication application = yarnClient.createApplication();
-        //System.out.println(application.getNewApplicationResponse().getApplicationId());
 
-        applicationId = "application_1540192469362_0010";
-        yarnClient.killApplication(parseApplicationId(applicationId));
-
-        ApplicationReport report = yarnClient.getApplicationReport(parseApplicationId(applicationId));
-
-        System.out.println(report.getFinalApplicationStatus().name());
-        System.out.println(report.getApplicationType());
-        System.out.println(report.getTrackingUrl());
-        System.out.println(report.getYarnApplicationState().name());
+        submitApplication();
     }
 }
