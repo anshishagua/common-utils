@@ -24,8 +24,10 @@ public class SparkSubmitUtils {
 
                 "--arg", "3", "--arg", "yarn-cluster"};
 
-        Configuration config = new Configuration();
+        Configuration configuration = new Configuration();
         System.setProperty("SPARK_YARN_MODE", "true");
+        configuration.set("fs.defaultFS", "hdfs://host:port");
+        configuration.set("mapreduce.jobtracker.address", "host:port");
         SparkConf sparkConf = new SparkConf();
         sparkConf.setAppName("example");
 
