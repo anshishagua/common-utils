@@ -152,8 +152,9 @@ public class YarnUtils {
         String userHome = System.getenv("HOME");
 
         String applicationId = yarnClientApplication.getNewApplicationResponse().getApplicationId().toString();
-        String dest = userHome + "/" + ".sparkStaging/" + applicationId + "/__spark_conf__.zip";
 
+        /*
+        String dest = userHome + "/" + ".sparkStaging/" + applicationId + "/__spark_conf__.zip";
         SystemUtils.setEnv("SPARK_YARN_STAGING_DIR",userHome + "/.sparkStaging/" + applicationId);
 
         String command = "mkdir -p " + userHome + "/" + ".sparkStaging/" + applicationId;
@@ -162,6 +163,7 @@ public class YarnUtils {
         command = "cp " + userHome + "/Desktop/__spark_conf__.zip " + dest;
         System.out.println(command);
         Runtime.getRuntime().exec(command).waitFor();
+        */
 
         ApplicationSubmissionContext context = yarnClientApplication.getApplicationSubmissionContext();
 
@@ -193,7 +195,8 @@ public class YarnUtils {
         resource.setVisibility(LocalResourceVisibility.APPLICATION);
         localResourceMap.put("__app__.jar", resource);
 
-        path = new Path("/Users/xiaoli/Desktop/spark-libs.zip");
+        /*
+        path = new Path(System.getenv("HOME")+ "/Desktop/spark-libs.zip");
         path = FileSystem.get(conf).makeQualified(path);
         fileStatus = FileSystem.get(conf).getFileStatus(path);
         resource = Records.newRecord(LocalResource.class);
@@ -203,8 +206,10 @@ public class YarnUtils {
         resource.setType(LocalResourceType.ARCHIVE);
         resource.setVisibility(LocalResourceVisibility.APPLICATION);
         localResourceMap.put("__spark_libs__", resource);
+        */
 
-        path = new Path("/Users/xiaoli/Desktop/spark-conf.zip");
+        /*
+        path = new Path(System.getenv("HOME") + "/Desktop/spark-conf.zip");
         path = FileSystem.get(conf).makeQualified(path);
         fileStatus = FileSystem.get(conf).getFileStatus(path);
         resource = Records.newRecord(LocalResource.class);
@@ -214,6 +219,7 @@ public class YarnUtils {
         resource.setType(LocalResourceType.ARCHIVE);
         resource.setVisibility(LocalResourceVisibility.APPLICATION);
         localResourceMap.put("__spark_conf__", resource);
+        */
 
         amContainer.setLocalResources(localResourceMap);
         List<String> commands =
@@ -222,11 +228,16 @@ public class YarnUtils {
                         appMasterClassName + " " +
                         "--class " +  "'" + className + "' " +
                         "--jar " + jarPath + " " +
-                        "--arg '3' " +
-                        "--properties-file $PWD/__spark_conf__/__spark_conf__.properties " +
+                        //"--arg '3' " +
+                        //"--properties-file $PWD/__spark_conf__/__spark_conf__.properties " +
                         "1> <LOG_DIR>/stdout 2> " +
                         "<LOG_DIR>/stderr");
 
+        commands = Collections.singletonList("$JAVA_HOME/bin/java"
+                + " -Xmx256M"
+                + " " + appMasterClassName + " "
+                + " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout"
+                + " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
         System.out.println(commands.get(0));
         amContainer.setCommands(commands);
 
@@ -428,7 +439,7 @@ public class YarnUtils {
         int yarnPort = 8088;
         String applicationName = UUID.randomUUID().toString();
         String className = "com.anshishagua.SparkExample";
-        String jarPath = "/Users/xiaoli/IdeaProjects/common-utils/target/common-utils-1.0-SNAPSHOT.jar";
+        String jarPath = System.getenv("HOME") + "/code/common-utils/target/common-utils-1.0-SNAPSHOT.jar";
         String appMasterClassName = "org.apache.spark.deploy.yarn.ApplicationMaster";
 
         ApplicationId applicationId = submitApplication(yarnHost, yarnPort, applicationName, jarPath, className, appMasterClassName);

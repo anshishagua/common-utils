@@ -13,7 +13,8 @@ public class YarnClientUtils {
         int yarnPort = 8088;
         String applicationName = UUID.randomUUID().toString();
         String className = "com.anshishagua.SparkExample";
-        String jarPath = "/Users/xiaoli/IdeaProjects/common-utils/target/common-utils-1.0-SNAPSHOT.jar";
+        String jarPath = System.getenv("HOME") + "/code/common-utils/target/common-utils-1.0-SNAPSHOT.jar";
+        System.out.println(jarPath);
         String appMasterClassName = "com.anshishagua.yarn.ApplicationMaster";
 
         YarnUtils.submitApplication(yarnHost, yarnPort, applicationName, jarPath, className, appMasterClassName);

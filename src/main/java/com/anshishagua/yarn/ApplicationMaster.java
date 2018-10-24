@@ -3,6 +3,9 @@ package com.anshishagua.yarn;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
@@ -11,6 +14,9 @@ import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
+import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.hadoop.yarn.api.records.LocalResourceType;
+import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -18,6 +24,7 @@ import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.impl.NMClientAsyncImpl;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
@@ -25,6 +32,7 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -52,46 +60,73 @@ public class ApplicationMaster {
         public LaunchContainerTask(Container container) {
             this.container = container;
         }
+
+        @Override
         public void run() {
             List<String> commands = new LinkedList<>();
 
             commands.add("echo 'hello,world!!!!!!!!!'");
             ContainerLaunchContext context = Records.newRecord(ContainerLaunchContext.class);
             context.setCommands(commands);
+            String jarPath = "Users/lixiao/code/common-utils/target/common-utils-1.0-SNAPSHOT.jar";
+            Path path = new Path(jarPath);
+
+            Configuration conf = new YarnConfiguration();
+            try {
+                path = FileSystem.get(conf).makeQualified(path);
+                FileStatus fileStatus = FileSystem.get(conf).getFileStatus(path);
+                LocalResource resource = Records.newRecord(LocalResource.class);
+                resource.setResource(ConverterUtils.getYarnUrlFromPath(path));
+                resource.setSize(fileStatus.getLen());
+                resource.setTimestamp(fileStatus.getModificationTime());
+                resource.setType(LocalResourceType.FILE);
+                resource.setVisibility(LocalResourceVisibility.APPLICATION);
+                Map<String, LocalResource> map = new HashMap<>();
+
+                map.put("__app__.jar", resource);
+                context.setLocalResources(map);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
 
             amNMClient.startContainerAsync(container, context);
         }
     }
 
     private class NMCallbackHandler implements NMClientAsync.CallbackHandler {
-
+        @Override
         public void onContainerStarted(ContainerId containerId,
                                        Map<String, ByteBuffer> allServiceResponse) {
             LOG.info("Container Stared " + containerId.toString());
 
         }
 
+        @Override
         public void onContainerStatusReceived(ContainerId containerId,
                                               ContainerStatus containerStatus) {
 
         }
 
+        @Override
         public void onContainerStopped(ContainerId containerId) {
             // TODO Auto-generated method stub
 
         }
 
+        @Override
         public void onStartContainerError(ContainerId containerId, Throwable t) {
             // TODO Auto-generated method stub
 
         }
 
+        @Override
         public void onGetContainerStatusError(ContainerId containerId,
                                               Throwable t) {
             // TODO Auto-generated method stub
 
         }
 
+        @Override
         public void onStopContainerError(ContainerId containerId, Throwable t) {
             // TODO Auto-generated method stub
 
@@ -100,6 +135,7 @@ public class ApplicationMaster {
     }
 
     private class RMCallbackHandler implements AMRMClientAsync.CallbackHandler {
+        @Override
         public void onContainersCompleted(List<ContainerStatus> statuses) {
             for (ContainerStatus status : statuses) {
                 LOG.info("Container Completed: " + status.getContainerId().toString()
@@ -115,6 +151,7 @@ public class ApplicationMaster {
             }
         }
 
+        @Override
         public void onContainersAllocated(List<Container> containers) {
             for (Container c : containers) {
                 LOG.info("Container Allocated"
@@ -125,18 +162,23 @@ public class ApplicationMaster {
             }
         }
 
+        @Override
         public void onShutdownRequest() {
+
         }
 
+        @Override
         public void onNodesUpdated(List<NodeReport> updatedNodes) {
 
         }
 
+        @Override
         public float getProgress() {
             float progress = 0;
             return progress;
         }
 
+        @Override
         public void onError(Throwable e) {
             amRMClient.stop();
         }
