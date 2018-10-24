@@ -1,35 +1,41 @@
 package com.anshishagua.utils;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.spark.SparkConf;
+import com.anshishagua.object.SparkConstants;
 import org.apache.spark.deploy.SparkSubmit;
-import org.apache.spark.deploy.yarn.ApplicationMaster;
-import org.apache.spark.deploy.yarn.Client;
-import org.apache.spark.deploy.yarn.ClientArguments;
 
 public class SparkSubmitUtils {
-    public static void main(String [] arguments) {
-        System.out.println(System.getenv());
-        SystemUtils.setEnv("name", "benben");
+    public static void submit(String className, String jarPath, String appName) {
+        SystemUtils.setEnv("HADOOP_CONF_DIR", System.getProperty("HADOOP_HOME") + "/etc");
 
-        System.out.println(System.getenv("name"));
-        //SystemUtils.setEnv("HADOOP_CONF_DIR", System.getProperty("HADOOP_HOME") + "/etc");
+        String[] args = new String[] {
+                "--class", className,
+                "--master", "yarn",
+                "--name", appName,
+                "--deploy-mode", "cluster",
+                jarPath,
+                "3"};
 
+        SparkSubmit.main(args);
+    }
+
+    public static void main(String [] args) {
+        SystemUtils.setEnv("HADOOP_CONF_DIR", System.getProperty("HADOOP_HOME") + "/etc");
+
+        submit("com.anshishagua.SparkExample",
+                "/Users/xiaoli/IdeaProjects/common-utils/target/common-utils-1.0-SNAPSHOT.jar",
+                "aaaaaaaa");
+    }
+
+    public static void main2(String [] arguments) {
+        SystemUtils.setEnv("HADOOP_CONF_DIR", System.getProperty("HADOOP_HOME") + "/etc");
 
         String[] args = new String[] {
                 "--class", "org.apache.spark.examples.SparkPi",
                 "--master", "yarn",
                 "--name", "xxxwerqwerqwer",
                 "--deploy-mode", "cluster",
-                System.getenv("SPARK_HOME") + "/examples/jars/spark-examples_2.11-2.2.1.jar",
+                System.getenv("SPARK_HOME") + "/examples/jars/spark-examples_2.11-" + SparkConstants.SPARK_VERSION + ".jar",
                 "3"};
-
-        Configuration configuration = new Configuration();
-        System.setProperty("SPARK_YARN_MODE", "true");
-        configuration.set("fs.defaultFS", "hdfs://host:port");
-        configuration.set("mapreduce.jobtracker.address", "host:port");
-        SparkConf sparkConf = new SparkConf();
-        sparkConf.setAppName("example");
 
         SparkSubmit.main(args);
     }
