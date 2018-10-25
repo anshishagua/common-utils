@@ -21,6 +21,7 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -52,59 +53,36 @@ public class Client {
         ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
         List<String> commands = new ArrayList<>();
 
-        String appJar = "/tmp/apps/app.jar";
+        String appJar = "/tmp/app.jar";
         String appClassName = "com.anshishagua.yarn.app.ApplicationMaster";
 
-        String command = String.format("%s/bin/java -cp %s %s %s %s",
-                ApplicationConstants.Environment.JAVA_HOME.$$(),
-                appJar,
+        String command = String.format("%s/bin/java %s %s %s",
+                ApplicationConstants.Environment.JAVA_HOME.$(),
                 appClassName,
                 " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout",
                 " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
 
-        commands.add("echo $CLASSPATH;");
-        //commands.add(command);
+        commands.add("echo $CLASSPATH; echo 'Hello,world'!; ");
+        commands.add(command);
         System.out.println(command);
         amContainer.setCommands(commands);
 
         Map<String, String> environment = new HashMap<>();
 
-        System.out.println(configuration.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH, null));
-        StringBuilder classpath = new StringBuilder(ApplicationConstants.Environment.CLASSPATH.$$())
-                .append(":").append("./*");
-        for (String string : configuration.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH, YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
-            classpath.append(":");
-            classpath.append(string.trim());
+        StringBuilder classpath = new StringBuilder(ApplicationConstants.Environment.CLASSPATH.$()).append(File.pathSeparatorChar).append("./*");
+
+        for (String c : configuration.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH, YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
+            classpath.append(File.pathSeparatorChar);
+            classpath.append(c.trim());
         }
 
         environment.put("CLASSPATH", classpath.toString());
-        System.out.println(environment);
         amContainer.setEnvironment(environment);
 
         Map<String, LocalResource> localResourceMap = new HashMap<>();
-        Path path = new Path(appJar);
 
-        path = FileSystem.get(configuration).makeQualified(path);
-        LocalResource resource = Records.newRecord(LocalResource.class);
-        FileStatus fileStatus = FileSystem.get(configuration).getFileStatus(path);
-        resource.setResource(ConverterUtils.getYarnUrlFromPath(path));
-        resource.setSize(fileStatus.getLen());
-        resource.setTimestamp(fileStatus.getModificationTime());
-        resource.setType(LocalResourceType.FILE);
-        resource.setVisibility(LocalResourceVisibility.APPLICATION);
-        localResourceMap.put("aaaa", resource);
-
-        path = new Path("/tmp/apps/hadoop-yarn-client-2.7.7.jar");
-        path = FileSystem.get(configuration).makeQualified(path);
-        resource = Records.newRecord(LocalResource.class);
-        fileStatus = FileSystem.get(configuration).getFileStatus(path);
-        resource.setResource(ConverterUtils.getYarnUrlFromPath(path));
-        resource.setSize(fileStatus.getLen());
-        resource.setTimestamp(fileStatus.getModificationTime());
-        resource.setType(LocalResourceType.FILE);
-        resource.setVisibility(LocalResourceVisibility.APPLICATION);
-        localResourceMap.put("aabbbaa", resource);
-
+        addToLocalResource(applicationId.toString(), appJar, configuration, localResourceMap);
+        //addToLocalResource(applicationId.toString(), "/tmp/apps/hadoop-yarn-client-2.7.7.jar", configuration, localResourceMap);
 
         amContainer.setLocalResources(localResourceMap);
         context.setAMContainerSpec(amContainer);
@@ -113,6 +91,30 @@ public class Client {
         yarnClient.submitApplication(context);
 
         return applicationId.toString();
+    }
+
+    private static void addToLocalResource(String applicationId, String localFile, Configuration conf, Map<String, LocalResource> localResourceMap) throws IOException {
+        FileSystem fs = FileSystem.get(conf);
+        Path src = new Path(localFile);
+        String pathSuffix =  localFile;
+        Path dest = new Path(fs.getHomeDirectory(), pathSuffix);
+        fs.copyFromLocalFile(false, true, src, dest);
+        FileStatus fileStatus = fs.getFileStatus(dest);
+        LocalResource resource = Records.newRecord(LocalResource.class);
+
+        resource.setResource(ConverterUtils.getYarnUrlFromPath(dest));
+        resource.setSize(fileStatus.getLen());
+        resource.setTimestamp(fileStatus.getModificationTime());
+
+        if (localFile.endsWith("zip") || localFile.endsWith("gz")) {
+            resource.setType(LocalResourceType.ARCHIVE);
+        } else {
+            resource.setType(LocalResourceType.FILE);
+        }
+
+        resource.setVisibility(LocalResourceVisibility.APPLICATION);
+
+        localResourceMap.put("app.jar", resource);
     }
 
     public static void main(String [] args) throws Exception {

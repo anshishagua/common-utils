@@ -15,6 +15,7 @@ import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
+import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
@@ -180,7 +181,7 @@ public class ApplicationMaster {
 
     @SuppressWarnings("unchecked")
     void run() throws YarnException, IOException {
-        logInformation();
+        //logInformation();
         Configuration conf = new Configuration();
 
         // 1. create amRMClient
@@ -193,8 +194,7 @@ public class ApplicationMaster {
         amNMClient.start();
 
         // 3. register with RM and this will heartbeating to RM
-        RegisterApplicationMasterResponse response = amRMClient
-                .registerApplicationMaster(NetUtils.getHostname(), -1, "");
+        RegisterApplicationMasterResponse response = amRMClient.registerApplicationMaster(NetUtils.getHostname(), -1, "");
 
         int numContainers = 2;
 
@@ -204,6 +204,9 @@ public class ApplicationMaster {
                     Priority.newInstance(0));
             amRMClient.addContainerRequest(containerAsk);
         }
+
+        amRMClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, "", "");
+        System.out.println("Done!");
     }
 
     public void waitComplete() {
