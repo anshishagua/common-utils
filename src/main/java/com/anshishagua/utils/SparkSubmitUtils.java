@@ -2,6 +2,7 @@ package com.anshishagua.utils;
 
 import com.anshishagua.object.SparkConstants;
 import org.apache.spark.deploy.SparkSubmit;
+import org.apache.spark.executor.CoarseGrainedExecutorBackend;
 
 public class SparkSubmitUtils {
     public static void submit(String className, String jarPath, String appName) {

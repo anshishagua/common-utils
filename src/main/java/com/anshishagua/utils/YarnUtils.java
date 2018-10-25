@@ -295,7 +295,6 @@ public class YarnUtils {
         yarnClient.init(conf);
         yarnClient.start();
 
-        ApplicationMaster master;
         YarnClientApplication yarnClientApplication = yarnClient.createApplication();
 
         String userHome = System.getenv("HOME");
@@ -365,7 +364,6 @@ public class YarnUtils {
         resource1.setVisibility(LocalResourceVisibility.APPLICATION);
         localResourceMap.put("__spark_conf__", resource1);
 
-        ApplicationMaster applicationMaster;
         amContainer.setLocalResources(localResourceMap);
         List<String> commands =
                 Collections.singletonList("$JAVA_HOME/bin/java -server -Xmx1024m -Djava.io.tmpdir=$PWD/tmp " +
@@ -421,9 +419,10 @@ public class YarnUtils {
         yarnClient.submitApplication(context);
     }
 
-    public static YarnClient yarnClient(String yarnHost, int yarnPort) {
+    public static YarnClient get(String yarnHost, int yarnPort) {
+
         YarnClient yarnClient = YarnClient.createYarnClient();
-        Configuration conf = new YarnConfiguration();
+        Configuration conf = new Configuration();
 
         conf.set(YarnConfiguration.RM_WEBAPP_ADDRESS, yarnHost + ":" + yarnPort);
         conf.setBoolean(YarnConfiguration.YARN_MINICLUSTER_FIXED_PORTS,true);
