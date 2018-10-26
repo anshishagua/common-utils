@@ -62,9 +62,7 @@ public class Client {
                 " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout",
                 " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
 
-        commands.add("echo $CLASSPATH; echo 'Hello,world'!; ");
         commands.add(command);
-        System.out.println(command);
         amContainer.setCommands(commands);
 
         Map<String, String> environment = new HashMap<>();
@@ -82,7 +80,6 @@ public class Client {
         Map<String, LocalResource> localResourceMap = new HashMap<>();
 
         addToLocalResource(applicationId.toString(), appJar, configuration, localResourceMap);
-        //addToLocalResource(applicationId.toString(), "/tmp/apps/hadoop-yarn-client-2.7.7.jar", configuration, localResourceMap);
 
         amContainer.setLocalResources(localResourceMap);
         context.setAMContainerSpec(amContainer);

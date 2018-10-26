@@ -9,6 +9,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
+import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -23,6 +24,8 @@ import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
+import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
+
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.impl.NMClientAsyncImpl;
@@ -31,8 +34,10 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -40,20 +45,21 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ApplicationMaster {
     private static final Log LOG = LogFactory.getLog(com.anshishagua.yarn.ApplicationMaster.class);
 
-    @SuppressWarnings("rawtypes")
-    private AMRMClientAsync amRMClient = null;
-    NMClientAsyncImpl amNMClient = null;
+    private AMRMClientAsync<ContainerRequest> amRMClient = null;
+    private NMClientAsyncImpl amNMClient = null;
 
-    private AtomicInteger numTotalContainers = new AtomicInteger(10);
+    private int numTotalContainers = 1;
     private AtomicInteger numCompletedContainers = new AtomicInteger(0);
     private ExecutorService exeService = Executors.newCachedThreadPool();
     private Map<ContainerId, Container> runningContainers = new ConcurrentHashMap<>();
     private String [] args;
+    private Configuration conf;
 
     private class LaunchContainerTask implements Runnable {
         private Container container;
@@ -64,11 +70,59 @@ public class ApplicationMaster {
 
         @Override
         public void run() {
-            List<String> commands = new LinkedList<>();
+            List<String> commands = new ArrayList<>();
 
-            commands.add("echo 'hello,world!!!!!!!!!'");
+            System.out.println("Run");
+            commands.add("echo 'hello,world!!!!!!!!!' 1> "
+                    + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout" + " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
+            String command = String.format("%s/bin/java %s %s %s",
+                    ApplicationConstants.Environment.JAVA_HOME.$(),
+                    "com.anshishagua.yarn.app.Example",
+                    " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout",
+                    " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
+
+            //commands.add(command);
             ContainerLaunchContext context = Records.newRecord(ContainerLaunchContext.class);
             context.setCommands(commands);
+
+            /*
+            Map<String, LocalResource> localResourceMap = new HashMap<>();
+
+            try {
+                FileSystem fs = FileSystem.get(conf);
+                String localFile = "/tmp/app.jar";
+                Path src = new Path(localFile);
+                String pathSuffix =  localFile;
+                Path dest = new Path(fs.getHomeDirectory(), pathSuffix);
+                fs.copyFromLocalFile(false, true, src, dest);
+                FileStatus fileStatus = fs.getFileStatus(dest);
+                LocalResource resource = Records.newRecord(LocalResource.class);
+                resource.setResource(ConverterUtils.getYarnUrlFromPath(dest));
+                resource.setSize(fileStatus.getLen());
+
+                resource.setTimestamp(fileStatus.getModificationTime());
+
+                resource.setVisibility(LocalResourceVisibility.APPLICATION);
+
+                localResourceMap.put("app.jar", resource);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+
+            context.setLocalResources(localResourceMap);
+            */
+
+            Map<String, String> environment = new HashMap<>();
+
+            StringBuilder classpath = new StringBuilder(ApplicationConstants.Environment.CLASSPATH.$()).append(File.pathSeparatorChar).append("./*");
+
+            for (String c : conf.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH, YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
+                classpath.append(File.pathSeparatorChar);
+                classpath.append(c.trim());
+            }
+
+            environment.put("CLASSPATH", classpath.toString());
+            context.setEnvironment(environment);
 
             amNMClient.startContainerAsync(container, context);
         }
@@ -76,22 +130,18 @@ public class ApplicationMaster {
 
     private class NMCallbackHandler implements NMClientAsync.CallbackHandler {
         @Override
-        public void onContainerStarted(ContainerId containerId,
-                                       Map<String, ByteBuffer> allServiceResponse) {
-            LOG.info("Container Stared " + containerId.toString());
-
+        public void onContainerStarted(ContainerId containerId, Map<String, ByteBuffer> allServiceResponse) {
+            System.out.println("Container Stared " + containerId.toString());
         }
 
         @Override
-        public void onContainerStatusReceived(ContainerId containerId,
-                                              ContainerStatus containerStatus) {
+        public void onContainerStatusReceived(ContainerId containerId, ContainerStatus containerStatus) {
 
         }
 
         @Override
         public void onContainerStopped(ContainerId containerId) {
-            // TODO Auto-generated method stub
-
+            System.out.println("Container " + containerId + " stopped");
         }
 
         @Override
@@ -119,7 +169,7 @@ public class ApplicationMaster {
         @Override
         public void onContainersCompleted(List<ContainerStatus> statuses) {
             for (ContainerStatus status : statuses) {
-                LOG.info("Container Completed: " + status.getContainerId().toString()
+                System.out.println("Container Completed: " + status.getContainerId().toString()
                         + " exitStatus="+ status.getExitStatus());
 
                 if (status.getExitStatus() != 0) {
@@ -135,9 +185,10 @@ public class ApplicationMaster {
         @Override
         public void onContainersAllocated(List<Container> containers) {
             for (Container c : containers) {
-                LOG.info("Container Allocated"
+                System.out.println("Container Allocated"
                         + ", id=" + c.getId()
                         + ", containerNode=" + c.getNodeId());
+
                 exeService.submit(new ApplicationMaster.LaunchContainerTask(c));
                 runningContainers.put(c.getId(), c);
             }
@@ -155,7 +206,10 @@ public class ApplicationMaster {
 
         @Override
         public float getProgress() {
-            float progress = 0;
+            float progress = (float) numCompletedContainers.get() / (float) numTotalContainers;
+
+            System.out.println(progress);
+
             return progress;
         }
 
@@ -163,61 +217,45 @@ public class ApplicationMaster {
         public void onError(Throwable e) {
             amRMClient.stop();
         }
-
-    }
-
-    private void logInformation() {
-        System.out.println("This is System.out.println");
-        System.err.println("This is System.err.println");
-
-        String containerIdStr = System.getenv(ApplicationConstants.Environment.CONTAINER_ID.name());
-
-        LOG.info("containerId " + containerIdStr);
-
-        ContainerId containerId = ConverterUtils.toContainerId(containerIdStr);
-        ApplicationAttemptId appAttemptId = containerId.getApplicationAttemptId();
-        LOG.info("appAttemptId " + appAttemptId.toString());
     }
 
     @SuppressWarnings("unchecked")
     void run() throws YarnException, IOException {
-        //logInformation();
-        Configuration conf = new Configuration();
+        conf = new Configuration();
 
-        // 1. create amRMClient
         amRMClient = AMRMClientAsync.createAMRMClientAsync(1000, new RMCallbackHandler());
         amRMClient.init(conf);
         amRMClient.start();
-        // 2. Create nmClientAsync
+
+        RegisterApplicationMasterResponse registerApplicationMasterResponse = amRMClient.registerApplicationMaster(NetUtils.getHostname(), -1, "");
+
+        for (int i = 0; i < numTotalContainers; ++i) {
+            AMRMClient.ContainerRequest containerAsk = new AMRMClient.ContainerRequest(Resource.newInstance(1000, 1), null, null, Priority.newInstance(0));
+            amRMClient.addContainerRequest(containerAsk);
+        }
+
         amNMClient = new NMClientAsyncImpl(new NMCallbackHandler());
         amNMClient.init(conf);
         amNMClient.start();
 
-        // 3. register with RM and this will heartbeating to RM
-        RegisterApplicationMasterResponse response = amRMClient.registerApplicationMaster(NetUtils.getHostname(), -1, "");
-
-        int numContainers = 2;
-
-        for (int i = 0; i < numTotalContainers.get(); i++) {
-            AMRMClient.ContainerRequest containerAsk = new AMRMClient.ContainerRequest(
-                    Resource.newInstance(100, 1), null, null,
-                    Priority.newInstance(0));
-            amRMClient.addContainerRequest(containerAsk);
+        while (numCompletedContainers.get() < numTotalContainers) {
+            System.out.println("Completed:" + numCompletedContainers.get() + ", total:" + numTotalContainers);
+            try {
+                TimeUnit.MILLISECONDS.sleep(50);
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
         }
 
         amRMClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, "", "");
         System.out.println("Done!");
-    }
 
-    public void waitComplete() {
-
+        amNMClient.stop();
+        amRMClient.stop();
     }
 
     public static void main(String[] args) throws Exception {
-        System.out.println(System.getenv("CLASSPATH"));
         ApplicationMaster applicationMaster = new ApplicationMaster();
         applicationMaster.run();
-        applicationMaster.waitComplete();
-
     }
 }
