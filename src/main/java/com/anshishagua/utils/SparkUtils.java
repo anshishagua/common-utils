@@ -29,6 +29,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +54,37 @@ public class SparkUtils {
         }
     }
     */
+
+    public static Dataset<Row> join(Map<String, Dataset<Row>> datasetMap, List<String> joinConditions) {
+        Dataset<Row> dataset = null;
+
+        Set<String> set = new HashSet<>();
+
+        for (String joinCondition : joinConditions) {
+            String [] strings = joinCondition.split("=");
+
+            String leftTable = strings[0].trim().split("\\.")[0];
+            String leftColumn = strings[0].trim().split("\\.")[1];
+
+            String rightTable = strings[0].trim().split("\\.")[0];
+            String rightColumn = strings[0].trim().split("\\.")[1];
+
+            if (dataset == null) {
+                dataset = join(datasetMap.get(leftTable), datasetMap.get(rightTable),
+                        Arrays.asList(new Tuple2<>(leftColumn, rightColumn)));
+
+                set.add(leftTable);
+                set.add(rightTable);
+            } else {
+                Dataset<Row> right = datasetMap.get(rightTable);
+                Dataset<Row> left = datasetMap.get(leftTable);
+
+                dataset = dataset.join(right, left.col(leftColumn).equalTo(right.col(rightColumn)));
+            }
+        }
+
+        return dataset;
+    }
 
     public static Dataset<Row> join(Dataset<Row> a, Dataset<Row> b, String ... joinColumns) {
         return join(a, b, JoinType.INNER, joinColumns);
