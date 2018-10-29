@@ -6,5 +6,6 @@ public class Example {
     public static void main(String [] args) {
         HashPartitioner partitioner;
         System.out.println("Hello, world");
+
     }
 }
