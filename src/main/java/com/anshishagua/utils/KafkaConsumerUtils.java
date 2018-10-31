@@ -33,7 +33,7 @@ public class KafkaConsumerUtils {
         ConsumerRecords<String, String> consumerRecords = null;
 
         while (true) {
-            consumerRecords = consumer.poll(Duration.ofMillis(300));
+            consumerRecords = consumer.poll(300);
 
             Map<TopicPartition, OffsetAndMetadata> map = new HashMap<>();
 
