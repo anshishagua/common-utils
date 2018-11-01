@@ -2,13 +2,16 @@ package com.anshishagua.utils;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.anshishagua.object.TableField;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
+import org.apache.spark.sql.ForeachWriter;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
@@ -17,6 +20,7 @@ import org.apache.spark.sql.api.java.UDF2;
 import org.apache.spark.sql.expressions.UserDefinedFunction;
 import org.apache.spark.sql.functions;
 import org.apache.spark.sql.streaming.GroupState;
+import org.apache.spark.sql.streaming.GroupStateTimeout;
 import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.StreamingQuery;
 import org.apache.spark.sql.types.DataTypes;
@@ -52,22 +56,43 @@ public class SparkStreamingUtils {
                 .load()
                 .selectExpr("CAST(value AS STRING) AS value");
 
-        //dataset.withColumn("aaa", functions.udf(null, DataTypes.StringType).apply(dataset.col("aaa"), functions.lit("aaa")))
-        //dataset = dataset.withColumn("id", functions.callUDF("parse_json", dataset.col("value"), functions.lit("id")))
-        //        .withColumn("name", functions.callUDF("parse_json", dataset.col("value"), functions.lit("name")))
-        //        .withColumn("age", functions.callUDF("parse_json", dataset.col("value"), functions.lit("age")))
-        //        .drop("value");
-
         dataset = dataset.selectExpr("parse_json(value, 'id') AS id",
                 "parse_json(value, 'name') AS name",
                 "parse_json(value, 'age') AS age", "parse_json(value, 'timestamp') AS timestamp");
 
         dataset = dataset.groupBy("age").agg(functions.sum(dataset.col("age")).alias("sum"));
 
-        StreamingQuery query = dataset.writeStream().outputMode(OutputMode.Complete()).format("console").start();
-        GroupState state;
-        query.awaitTermination();
+        //dataset.as(Encoders.STRING()).groupByKey(null, Encoders.bean(Object.class)).mapGroupsWithState()
+        //StreamingQuery query = dataset.writeStream().outputMode(OutputMode.Complete()).format("console").start();
 
+        /*
+        StreamingQuery query = dataset.writeStream().outputMode(OutputMode.Complete())
+                .format("kafka")
+                .option("kafka.bootstrap.servers", "localhost:9092")
+                .option("subscribe", "output")
+                .start();
+        */
+
+        StreamingQuery query1 = dataset.writeStream().outputMode(OutputMode.Complete()).format("foreach")
+                .foreach(new ForeachWriter<Row>() {
+                    @Override
+                    public void process(Row value) {
+                        System.out.println(value);
+                    }
+
+                    @Override
+                    public void close(Throwable errorOrNull) {
+                        //System.out.println("close");
+                    }
+
+                    @Override
+                    public boolean open(long partitionId, long version) {
+                        return true;
+                    }
+                })
+                .start();
+
+        /*
         JavaRDD<Row> javaRDD = dataset.toJavaRDD().map(new Function<Row, Row>() {
             public Row call(Row row) {
                 String json = row.getString(0);
@@ -92,8 +117,9 @@ public class SparkStreamingUtils {
         Dataset<Row> df = spark.createDataFrame(javaRDD, structType);
 
         query = df.writeStream().format("console").start();
+        */
 
-        query.awaitTermination();
+        query1.awaitTermination();
 
     }
 
