@@ -17,6 +17,10 @@ public class StreamState implements Serializable {
         this.records.add(record);
     }
 
+    public void setRecords(List<Record> records) {
+        this.records = records;
+    }
+
     public List<Record> getRecords() {
         return records;
     }

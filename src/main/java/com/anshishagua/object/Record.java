@@ -6,6 +6,10 @@ public class Record implements Serializable {
     private long timestamp;
     private String value;
 
+    public Record() {
+
+    }
+
     public Record(long timestamp, String value) {
         this.timestamp = timestamp;
         this.value = value;

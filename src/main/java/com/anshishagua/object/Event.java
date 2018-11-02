@@ -1,8 +1,11 @@
 package com.anshishagua.object;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class Event {
+public class Event implements Serializable {
+    public static final Event NO_EVENT = new Event(-1, null);
+
     private long triggeredTimestamp;
     private List<String> triggeredRecords;
 
