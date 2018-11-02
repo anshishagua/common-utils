@@ -1,17 +1,17 @@
 package com.anshishagua.utils;
 
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
+import com.anshishagua.functions.ParseJson;
 import com.anshishagua.object.Event;
 import com.anshishagua.object.Events;
-import com.anshishagua.object.KafkaWriter;
+import com.anshishagua.object.Field;
+import com.anshishagua.object.Fields;
+import com.anshishagua.object.HostPort;
+import com.anshishagua.object.KafkaDataSource;
 import com.anshishagua.object.Record;
 import com.anshishagua.object.StreamState;
-import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.function.FlatMapFunction;
@@ -19,21 +19,17 @@ import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.api.java.function.MapGroupsWithStateFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
-import org.apache.spark.sql.ForeachWriter;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.api.java.UDF2;
 import org.apache.spark.sql.streaming.GroupState;
 import org.apache.spark.sql.streaming.GroupStateTimeout;
 import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.StreamingQuery;
-import org.apache.spark.sql.types.DataTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
-import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
@@ -51,27 +47,55 @@ public class EventAnalysis {
 
         conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
         conf.registerKryoClasses(new Class<?> [] {KafkaProducer.class});
-        SparkSession spark = SparkSession.builder().appName("user-analyze").master("local[*]").config(conf).getOrCreate();
+        SparkSession spark = SparkSession
+                .builder()
+                .appName("user-analyze")
+                .master("local[*]")
+                .config(conf)
+                .getOrCreate();
 
-        spark.sqlContext().udf().register("parse_json", new UDF2<String, String, String>() {
-            public String call(String string, String field) {
-                JSONObject jsonObject = JSON.parseObject(string);
+        spark.sqlContext().udf().register(ParseJson.FUNCTION_NAME, ParseJson.INSTANCE, ParseJson.RETURN_TYPE);
 
-                return jsonObject.getString(field);
-            }
-        }, DataTypes.StringType);
+        KafkaDataSource dataSource = new KafkaDataSource();
+        dataSource.setBootstrapServers(Arrays.asList(new HostPort("localhost", 9092)));
+        dataSource.setTopic("user-logs");
+        dataSource.setFields(Fields.newInstance(
+                new Field("id", "long"),
+                new Field("money", "double"),
+                new Field("timestamp", "long"),
+                new Field("ip", "string")));
+
+        String bootstrapServers = dataSource.getBootstrapServers().stream().map(it -> it.getHost() + ":" + it.getPort()).collect(Collectors.joining(","));
         Dataset<Row> dataset = spark.readStream().format("kafka")
-                .option("kafka.bootstrap.servers", "localhost:9092")
-                .option("subscribe", "user-logs")
+                .option("kafka.bootstrap.servers", bootstrapServers)
+                .option("subscribe", dataSource.getTopic())
                 .load()
                 .selectExpr("CAST(value AS STRING) AS value");
 
+        List<String> selectExpressions = new ArrayList<>();
+
+        for (Field field : dataSource.getFields().getFields()) {
+            String expression = SparkSqlUtils.callFunction(ParseJson.FUNCTION_NAME, "value", "'" + field.getName() + "'");
+
+            expression = SparkSqlUtils.cast(expression, field.getType(), field.getName());
+
+            selectExpressions.add(expression);
+        }
+
+        selectExpressions.add("value as json");
+
+        dataset = dataset.selectExpr(selectExpressions.toArray(new String[0]));
+
+        dataset.printSchema();
+
+        /*
         dataset = dataset.selectExpr(
                 "cast(parse_json(value, 'id') as long) AS id",
                 "cast(parse_json(value, 'money') as double) AS money",
                 "cast(parse_json(value, 'timestamp') as long) AS timestamp",
                 "cast(parse_json(value, 'ip') as string) AS ip",
                 "value AS json");
+        */
 
         //id, money, timestamp, ip, json
         long threshold = 5 * 1000000;
@@ -86,7 +110,9 @@ public class EventAnalysis {
                     Row row = values.next();
 
                     //id, money, timestamp, ip, json
-                    long timestamp = row.getLong(2);
+                    Field timestampField = dataSource.getFields().getField("timestamp");
+
+                    long timestamp = row.getLong(timestampField.getIndex());
 
                     LOG.warn("timestamp:" + timestamp);
 
@@ -95,6 +121,8 @@ public class EventAnalysis {
                     List<Record> records = streamState.getRecords().stream().filter(record -> record.getTimestamp() >= (timestamp - threshold)).collect(Collectors.toList());
 
                     int count = records.size() + 1;
+
+                    //Field jsonField = dataSource.getFields().getField("json");
                     String json = row.getString(4);
 
                     if (count >= 5) {
@@ -154,8 +182,6 @@ public class EventAnalysis {
 
         KafkaProducer<String, String> kafkaProducer = new KafkaProducer<>(properties);
         String topic = "event-logs";
-
-        //KafkaWriter<String> kafkaWriter = new KafkaWriter<>(kafkaProducer, topic);
 
         StreamingQuery query = events.writeStream()
                 .format("kafka")
