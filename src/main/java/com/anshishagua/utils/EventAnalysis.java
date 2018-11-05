@@ -25,6 +25,7 @@ import org.apache.spark.sql.streaming.GroupState;
 import org.apache.spark.sql.streaming.GroupStateTimeout;
 import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.StreamingQuery;
+import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +38,12 @@ import java.util.stream.Collectors;
 
 public class EventAnalysis {
     private static final Logger LOG = LoggerFactory.getLogger(EventAnalysis.class);
+
+    public static Field getTimestampField(Fields fields) {
+        List<Field> list = fields.getFields().stream().filter(field -> field.isTimestamp()).collect(Collectors.toList());
+
+        return list.isEmpty() ? null : list.get(0);
+    }
 
     public static void main(String [] args) throws Exception {
         LOG.warn("Hello,world");
@@ -62,7 +69,7 @@ public class EventAnalysis {
         dataSource.setFields(Fields.newInstance(
                 new Field("id", "long"),
                 new Field("money", "double"),
-                new Field("timestamp", "long"),
+                new Field("timestamp", "long", true),
                 new Field("ip", "string")));
 
         String bootstrapServers = dataSource.getBootstrapServers().stream().map(it -> it.getHost() + ":" + it.getPort()).collect(Collectors.joining(","));
@@ -100,6 +107,12 @@ public class EventAnalysis {
         //id, money, timestamp, ip, json
         long threshold = 5 * 1000000;
 
+        StructType structType = dataset.schema();
+
+        Field timestampField = getTimestampField(dataSource.getFields());
+
+        String expression = "count() >= 5";
+
         //count > 5
         MapGroupsWithStateFunction<String, Row, StreamState, Events> function = new MapGroupsWithStateFunction<String, Row, StreamState, Events>() {
             @Override
@@ -110,14 +123,14 @@ public class EventAnalysis {
                     Row row = values.next();
 
                     //id, money, timestamp, ip, json
-                    Field timestampField = dataSource.getFields().getField("timestamp");
-
                     long timestamp = row.getLong(timestampField.getIndex());
 
                     LOG.warn("timestamp:" + timestamp);
 
                     StreamState streamState = state.exists() ? state.get() : new StreamState();
 
+                    List<Row> rows = new ArrayList<>();
+                    
                     List<Record> records = streamState.getRecords().stream().filter(record -> record.getTimestamp() >= (timestamp - threshold)).collect(Collectors.toList());
 
                     int count = records.size() + 1;

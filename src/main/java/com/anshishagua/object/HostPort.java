@@ -19,6 +19,10 @@ public class HostPort implements Serializable {
         return port;
     }
 
+    public String toString(String separator) {
+        return String.format("%s%s%s", host, separator, String.valueOf(port));
+    }
+
     @Override
     public String toString() {
         return "HostPort{" +

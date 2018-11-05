@@ -8,6 +8,13 @@ public class Field implements Serializable {
     private String type;
     private boolean nullable;
     private boolean primaryKey;
+    private boolean isTimestamp;
+
+    public Field(String name, String type, boolean isTimestamp) {
+        this.name = name;
+        this.type = type;
+        this.isTimestamp = isTimestamp;
+    }
 
     public Field(String name, String type) {
         this.name = name;
@@ -52,5 +59,9 @@ public class Field implements Serializable {
 
     public void setPrimaryKey(boolean primaryKey) {
         this.primaryKey = primaryKey;
+    }
+
+    public boolean isTimestamp() {
+        return isTimestamp;
     }
 }
