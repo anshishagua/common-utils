@@ -17,4 +17,12 @@ a = user_info.age >= 30 and user_info.age <= 40 and sum(user_account.balance) >=
 
 a = a.
 
-a = user_info.id, sum(user_account.balance) as value
+aggr_table = user_info.id, sum(user_account.balance) as value
+
+
+a = user_info.age >= 30 and user_info.age <= 40 and aggr_table.value >= 10000000
+
+
+
+
+sum(person.money within 7 minutes) and count(person.transactions within 8 hours) >= 100

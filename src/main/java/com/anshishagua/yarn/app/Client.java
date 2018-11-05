@@ -43,7 +43,7 @@ public class Client {
         ApplicationSubmissionContext context = yarnClientApplication.getApplicationSubmissionContext();
 
         context.setApplicationType("YARN");
-        context.setMaxAppAttempts(3);
+        context.setMaxAppAttempts(2);
         context.setUnmanagedAM(false);
         context.setPriority(Priority.newInstance(1));
         context.setQueue("default");
@@ -83,7 +83,7 @@ public class Client {
 
         amContainer.setLocalResources(localResourceMap);
         context.setAMContainerSpec(amContainer);
-        context.setResource(Resource.newInstance(256, 1));
+        context.setResource(Resource.newInstance(1024, 1));
 
         yarnClient.submitApplication(context);
 

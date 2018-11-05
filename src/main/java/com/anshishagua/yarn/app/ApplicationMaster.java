@@ -72,29 +72,33 @@ public class ApplicationMaster {
         public void run() {
             List<String> commands = new ArrayList<>();
 
-            System.out.println("Run");
-            commands.add("echo 'hello,world!!!!!!!!!' 1> "
-                    + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout" + " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
-            String command = String.format("%s/bin/java %s %s %s",
+            System.out.println("Run command");
+            //commands.add("/bin/sh echo 'hello,world!!!!!!!!!' 1> "
+            //        + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout" + " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
+
+            String className = "com.anshishagua.yarn.app.Example";
+            String command = String.format("%s/bin/java %s",
                     ApplicationConstants.Environment.JAVA_HOME.$(),
-                    "com.anshishagua.yarn.app.Example",
+                    className,
                     " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout",
                     " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
 
-            //commands.add(command);
+            commands.add(command);
             ContainerLaunchContext context = Records.newRecord(ContainerLaunchContext.class);
             context.setCommands(commands);
 
-            /*
             Map<String, LocalResource> localResourceMap = new HashMap<>();
 
             try {
-                FileSystem fs = FileSystem.get(conf);
+                Configuration configuration = new Configuration();
+                configuration.set("fs.defaultFS", "hdfs://localhost:9000");
+
+                FileSystem fs = FileSystem.get(configuration);
                 String localFile = "/tmp/app.jar";
                 Path src = new Path(localFile);
                 String pathSuffix =  localFile;
                 Path dest = new Path(fs.getHomeDirectory(), pathSuffix);
-                fs.copyFromLocalFile(false, true, src, dest);
+                //fs.copyFromLocalFile(false, true, src, dest);
                 FileStatus fileStatus = fs.getFileStatus(dest);
                 LocalResource resource = Records.newRecord(LocalResource.class);
                 resource.setResource(ConverterUtils.getYarnUrlFromPath(dest));
@@ -110,7 +114,6 @@ public class ApplicationMaster {
             }
 
             context.setLocalResources(localResourceMap);
-            */
 
             Map<String, String> environment = new HashMap<>();
 
@@ -120,6 +123,9 @@ public class ApplicationMaster {
                 classpath.append(File.pathSeparatorChar);
                 classpath.append(c.trim());
             }
+
+            Map<String, String> containerEnv = new HashMap<>();
+            containerEnv.put("CLASSPATH", environment.toString());
 
             environment.put("CLASSPATH", classpath.toString());
             context.setEnvironment(environment);
@@ -136,6 +142,7 @@ public class ApplicationMaster {
 
         @Override
         public void onContainerStatusReceived(ContainerId containerId, ContainerStatus containerStatus) {
+            System.out.println("Container Stared " + containerId.toString());
 
         }
 
@@ -146,15 +153,12 @@ public class ApplicationMaster {
 
         @Override
         public void onStartContainerError(ContainerId containerId, Throwable t) {
-            // TODO Auto-generated method stub
-
+            System.out.println("Container Stared " + containerId.toString());
         }
 
         @Override
-        public void onGetContainerStatusError(ContainerId containerId,
-                                              Throwable t) {
-            // TODO Auto-generated method stub
-
+        public void onGetContainerStatusError(ContainerId containerId, Throwable t) {
+            System.out.println("Container Stared " + containerId.toString());
         }
 
         @Override
@@ -222,15 +226,16 @@ public class ApplicationMaster {
     @SuppressWarnings("unchecked")
     void run() throws YarnException, IOException {
         conf = new Configuration();
+        conf.set("fs.defaultFS", "hdfs://localhost:9000");
 
         amRMClient = AMRMClientAsync.createAMRMClientAsync(1000, new RMCallbackHandler());
         amRMClient.init(conf);
         amRMClient.start();
 
-        RegisterApplicationMasterResponse registerApplicationMasterResponse = amRMClient.registerApplicationMaster(NetUtils.getHostname(), -1, "");
+        amRMClient.registerApplicationMaster(NetUtils.getHostname(), -1, "");
 
         for (int i = 0; i < numTotalContainers; ++i) {
-            AMRMClient.ContainerRequest containerAsk = new AMRMClient.ContainerRequest(Resource.newInstance(1000, 1), null, null, Priority.newInstance(0));
+            AMRMClient.ContainerRequest containerAsk = new AMRMClient.ContainerRequest(Resource.newInstance(512, 1), null, null, Priority.newInstance(0));
             amRMClient.addContainerRequest(containerAsk);
         }
 

@@ -24,6 +24,11 @@ public class Fields implements Serializable {
         return fields;
     }
 
+    public void addField(Field field) {
+        field.setIndex(fields.size());
+        fields.add(field);
+    }
+
     public void setFields(List<Field> fields) {
         this.fields = fields;
     }

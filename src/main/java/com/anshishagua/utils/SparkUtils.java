@@ -1,5 +1,7 @@
 package com.anshishagua.utils;
 
+import com.anshishagua.object.ExecutePlan;
+import com.anshishagua.object.ExecutePlan.ExecuteSQL;
 import com.anshishagua.object.JoinType;
 import com.anshishagua.object.Schema;
 import com.anshishagua.object.TableField;
@@ -55,6 +57,19 @@ public class SparkUtils {
     }
     */
 
+    //a inner join b on b.id = a.id inner join c on c.id = b.id
+    //
+
+    /**
+     *                         join
+     *                     join   d
+     *                 join   c
+     *                a   b
+     * @param datasetMap
+     * @param joinConditions
+     * @return
+     */
+
     public static Dataset<Row> join(Map<String, Dataset<Row>> datasetMap, List<String> joinConditions) {
         Dataset<Row> dataset = null;
 
@@ -66,20 +81,23 @@ public class SparkUtils {
             String leftTable = strings[0].trim().split("\\.")[0];
             String leftColumn = strings[0].trim().split("\\.")[1];
 
-            String rightTable = strings[0].trim().split("\\.")[0];
-            String rightColumn = strings[0].trim().split("\\.")[1];
+            String rightTable = strings[1].trim().split("\\.")[0];
+            String rightColumn = strings[1].trim().split("\\.")[1];
+
+            Dataset<Row> left = datasetMap.get(leftTable);
+            Dataset<Row> right = datasetMap.get(rightTable);
 
             if (dataset == null) {
-                dataset = join(datasetMap.get(leftTable), datasetMap.get(rightTable),
-                        Arrays.asList(new Tuple2<>(leftColumn, rightColumn)));
-
+                dataset = left;
                 set.add(leftTable);
+            }
+
+            if (!set.contains(rightTable)) {
+                dataset = dataset.join(right, dataset.col(leftColumn).equalTo(right.col(rightColumn)));
                 set.add(rightTable);
             } else {
-                Dataset<Row> right = datasetMap.get(rightTable);
-                Dataset<Row> left = datasetMap.get(leftTable);
-
-                dataset = dataset.join(right, left.col(leftColumn).equalTo(right.col(rightColumn)));
+                dataset = dataset.join(left, left.col(leftColumn).equalTo(dataset.col(rightColumn)));
+                set.add(leftTable);
             }
         }
 
@@ -258,7 +276,13 @@ public class SparkUtils {
         return spark.createDataFrame(new ArrayList<>(), structType);
     }
 
-    public static void main(String [] args) throws Exception {
+    public static void execute(ExecutePlan plan) {
+        for (ExecuteSQL executeSQL : plan.getExecuteSQLs()) {
+
+        }
+    }
+
+    public static void main2(String [] args) throws Exception {
         SparkSession spark = SparkSession.builder().appName("hello").master("local[*]").getOrCreate();
 
         String schemaFile = "/Users/lixiao/code/common-utils/src/main/resources/user_info/schema.json";
@@ -327,5 +351,45 @@ public class SparkUtils {
 
         //a.id
         datasetMap.put("aggregation_on_user_info", result);
+    }
+
+    public static void main(String [] args) throws Exception {
+        SparkSession spark = SparkSession.builder().appName("hello").master("local[*]").getOrCreate();
+        spark.sparkContext().setLogLevel("WARN");
+        Map<String, Dataset<Row>> datasetMap = new HashMap<>();
+
+
+        //System.out.println(userInfo.count());
+
+        String schemaFile = "/Users/lixiao/code/common-utils/src/main/resources/user_info/schema.json";
+
+        Schema schema = Schema.load(new FileInputStream(schemaFile));
+        Map<String, String> map = new HashMap<>();
+        map.put("date", "2018-09-10");
+        Dataset<Row> userInfo = load(spark, schema, map);
+
+        userInfo.show();
+
+        schemaFile = "/Users/lixiao/code/common-utils/src/main/resources/user_account/schema.json";
+        schema = Schema.load(new FileInputStream(schemaFile));
+        Dataset<Row> userAccount = load(spark, schema, map);
+        userAccount.show();
+
+        schemaFile = "/Users/lixiao/code/common-utils/src/main/resources/account_info/schema.json";
+        schema = Schema.load(new FileInputStream(schemaFile));
+        Dataset<Row> accountInfo = load(spark, schema, map);
+        userAccount.show();
+
+        datasetMap.put("userInfo", userInfo);
+        datasetMap.put("userAccount", userAccount);
+        datasetMap.put("accountInfo", accountInfo);
+
+        Dataset<Row> result = join(datasetMap, Arrays.asList("userAccount.id = userInfo.id",
+                "accountInfo.account_id = userAccount.account_id"));
+
+        result.printSchema();
+
+        System.out.println(result.select(userInfo.col("id")));
+
     }
 }
