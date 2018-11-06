@@ -23,4 +23,14 @@ public enum TimeUnit {
     public String getValue() {
         return value;
     }
+
+    public static TimeUnit parseByValue(String value) {
+        for (TimeUnit timeUnit : values()) {
+            if (timeUnit.value.equals(value)) {
+                return timeUnit;
+            }
+        }
+
+        return null;
+    }
 }

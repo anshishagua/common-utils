@@ -1,4 +1,4 @@
-// Generated from /Users/xiaoli/IdeaProjects/common-utils/src/main/resources/Expression.g4 by ANTLR 4.7
+// Generated from /Users/lixiao/code/common-utils/src/main/resources/Expression.g4 by ANTLR 4.7
 package com.anshishagua.parser.generated;
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 
@@ -258,25 +258,25 @@ public interface ExpressionListener extends ParseTreeListener {
 	 */
 	void exitCaseWhen(ExpressionParser.CaseWhenContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link ExpressionParser#agg}.
+	 * Enter a parse tree produced by {@link ExpressionParser#aggregationType}.
 	 * @param ctx the parse tree
 	 */
-	void enterAgg(ExpressionParser.AggContext ctx);
+	void enterAggregationType(ExpressionParser.AggregationTypeContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link ExpressionParser#agg}.
+	 * Exit a parse tree produced by {@link ExpressionParser#aggregationType}.
 	 * @param ctx the parse tree
 	 */
-	void exitAgg(ExpressionParser.AggContext ctx);
+	void exitAggregationType(ExpressionParser.AggregationTypeContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link ExpressionParser#timeunit}.
+	 * Enter a parse tree produced by {@link ExpressionParser#timeUnit}.
 	 * @param ctx the parse tree
 	 */
-	void enterTimeunit(ExpressionParser.TimeunitContext ctx);
+	void enterTimeUnit(ExpressionParser.TimeUnitContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link ExpressionParser#timeunit}.
+	 * Exit a parse tree produced by {@link ExpressionParser#timeUnit}.
 	 * @param ctx the parse tree
 	 */
-	void exitTimeunit(ExpressionParser.TimeunitContext ctx);
+	void exitTimeUnit(ExpressionParser.TimeUnitContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link ExpressionParser#aggregation}.
 	 * @param ctx the parse tree

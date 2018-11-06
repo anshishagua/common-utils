@@ -1,7 +1,14 @@
 package com.anshishagua.object.nodes;
 
-public class Or extends AbstractExpression {
-    public Or(Expression left, Expression right) {
+/**
+ * Like.java
+ *
+ * @author lixiao
+ * @date 2018-11-06
+ */
+
+public class Like extends AbstractExpression {
+    public Like(Expression left, Expression right) {
         addChild(left);
         addChild(right);
     }
@@ -16,6 +23,6 @@ public class Or extends AbstractExpression {
 
     @Override
     public String toSQL() {
-        return String.format("%s OR %s", getLeft().toSQL(), getRight().toSQL());
+        return String.format("%s LIKE %s", getLeft().toSQL(), getRight().toSQL());
     }
 }

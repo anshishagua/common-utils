@@ -1,4 +1,4 @@
-// Generated from /Users/xiaoli/IdeaProjects/common-utils/src/main/resources/Expression.g4 by ANTLR 4.7
+// Generated from /Users/lixiao/code/common-utils/src/main/resources/Expression.g4 by ANTLR 4.7
 package com.anshishagua.parser.generated;
 import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor;
 
@@ -192,14 +192,14 @@ public class ExpressionBaseVisitor<T> extends AbstractParseTreeVisitor<T> implem
 	 * <p>The default implementation returns the result of calling
 	 * {@link #visitChildren} on {@code ctx}.</p>
 	 */
-	@Override public T visitAgg(ExpressionParser.AggContext ctx) { return visitChildren(ctx); }
+	@Override public T visitAggregationType(ExpressionParser.AggregationTypeContext ctx) { return visitChildren(ctx); }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation returns the result of calling
 	 * {@link #visitChildren} on {@code ctx}.</p>
 	 */
-	@Override public T visitTimeunit(ExpressionParser.TimeunitContext ctx) { return visitChildren(ctx); }
+	@Override public T visitTimeUnit(ExpressionParser.TimeUnitContext ctx) { return visitChildren(ctx); }
 	/**
 	 * {@inheritDoc}
 	 *

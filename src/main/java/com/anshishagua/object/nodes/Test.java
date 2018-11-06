@@ -64,7 +64,7 @@ public class Test {
     }
 
     public static void main(String [] args) {
-        String string = "SUM(person.money within 7 minutes) > 100";
+        String string = "SUM(person.money within 7 minutes) >= 100 and person.age >= 30 and person.age <= 40";
         CharStream inputStream = CharStreams.fromString(string);
         ExpressionLexer lexer = new ExpressionLexer(inputStream);
         CommonTokenStream tokenStream = new CommonTokenStream(lexer);
@@ -73,47 +73,14 @@ public class Test {
         ParseTree parseTree = parser.start();
         Parser visitor = new Parser();
 
-        Expression root = visitor.visit(parseTree);
+        Expression expression = visitor.visit(parseTree);
 
-        System.out.println(root.toSQL());
+        System.out.println(expression.toSQL());
 
 
         SparkSession spark = SparkSession.builder().master("local[*]").appName("aaa").getOrCreate();
 
         SparkSqlUtils.registerUdfs(spark);
-
-        Expression add = new ArithmeticExpression(ArithmeticType.PLUS,
-                new FieldRef("person", "money"),
-                new Literal(LiteralType.INTEGER, 1));
-
-        add = new Paren(add);
-
-
-        //sum(person.money within 7 minutes) >= 100 and person.age >= 30 and person.age <= 40
-        FieldRef personMoney = new FieldRef("person", "money");
-        FieldRef personAge = new FieldRef("person", "age");
-
-        Expression aggregation = new Aggregation(AggregationType.SUM,
-                personMoney,
-                new TimeCondition(7, TimeUnit.MINUTES));
-
-        Expression expression = new ArithmeticCompare(
-                ArithmeticCompareType.LARGER_THAN,
-                aggregation,
-                new Literal(LiteralType.INTEGER, 100));
-
-        expression = new And(expression,
-                new ArithmeticCompare(
-                        ArithmeticCompareType.LARGER_THAN_EQUAL,
-                        personAge,
-                        new Literal(LiteralType.INTEGER, 30)));
-
-        expression = new And(expression,
-                new ArithmeticCompare(ArithmeticCompareType.LOWER_THAN_EQUAL,
-                        personAge,
-                        new Literal(LiteralType.INTEGER, 40)));
-
-        System.out.println(expression.toSQL());
 
         List<Aggregation> aggregations = expression.getChildByType(Aggregation.class);
 
@@ -130,12 +97,12 @@ public class Test {
 
         Field timestampField = fields.getField("timestamp");
 
-        Row current = RowFactory.create(1, "benben", 35, 100.0, new Date().getTime());
+        Row current = RowFactory.create(1, "benben", 35, 100.0, System.currentTimeMillis());
 
         List<Row> rows = new ArrayList<>();
         rows.add(current);
-        rows.add(RowFactory.create(1, "benben", 35, 100.0, new Date().getTime()));
-        rows.add(RowFactory.create(1, "benben", 38, 1000.0, new Date().getTime()));
+        rows.add(RowFactory.create(1, "benben", 35, 100.0, System.currentTimeMillis()));
+        rows.add(RowFactory.create(1, "benben", 38, 1000.0, System.currentTimeMillis()));
 
         Dataset<Row> dataset = spark.createDataFrame(rows, structType);
         dataset.registerTempTable("person");
@@ -159,7 +126,7 @@ public class Test {
 
                 double value = spark.sql(sql).collectAsList().get(0).getDouble(0);
 
-                expression = expression.replace(aggregation, new Literal(LiteralType.DOUBLE, value));
+                expression = expression.replace(aggr, new Literal(LiteralType.DOUBLE, value));
             }
         }
 

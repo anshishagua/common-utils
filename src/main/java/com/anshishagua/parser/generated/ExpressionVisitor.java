@@ -1,4 +1,4 @@
-// Generated from /Users/xiaoli/IdeaProjects/common-utils/src/main/resources/Expression.g4 by ANTLR 4.7
+// Generated from /Users/lixiao/code/common-utils/src/main/resources/Expression.g4 by ANTLR 4.7
 package com.anshishagua.parser.generated;
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 
@@ -161,17 +161,17 @@ public interface ExpressionVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitCaseWhen(ExpressionParser.CaseWhenContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link ExpressionParser#agg}.
+	 * Visit a parse tree produced by {@link ExpressionParser#aggregationType}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitAgg(ExpressionParser.AggContext ctx);
+	T visitAggregationType(ExpressionParser.AggregationTypeContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link ExpressionParser#timeunit}.
+	 * Visit a parse tree produced by {@link ExpressionParser#timeUnit}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitTimeunit(ExpressionParser.TimeunitContext ctx);
+	T visitTimeUnit(ExpressionParser.TimeUnitContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link ExpressionParser#aggregation}.
 	 * @param ctx the parse tree

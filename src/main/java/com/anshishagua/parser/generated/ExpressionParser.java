@@ -1,4 +1,4 @@
-// Generated from /Users/xiaoli/IdeaProjects/common-utils/src/main/resources/Expression.g4 by ANTLR 4.7
+// Generated from /Users/lixiao/code/common-utils/src/main/resources/Expression.g4 by ANTLR 4.7
 package com.anshishagua.parser.generated;
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
@@ -30,23 +30,22 @@ public class ExpressionParser extends Parser {
 		RULE_condition = 9, RULE_expression = 10, RULE_andCondition = 11, RULE_conditionRightHandSide = 12, 
 		RULE_value = 13, RULE_param = 14, RULE_id = 15, RULE_columnRef = 16, RULE_operand = 17, 
 		RULE_summand = 18, RULE_plusMinus = 19, RULE_factor = 20, RULE_mulDivMod = 21, 
-		RULE_term = 22, RULE_function = 23, RULE_caseWhen = 24, RULE_agg = 25, 
-		RULE_timeunit = 26, RULE_aggregation = 27;
+		RULE_term = 22, RULE_function = 23, RULE_caseWhen = 24, RULE_aggregationType = 25, 
+		RULE_timeUnit = 26, RULE_aggregation = 27;
 	public static final String[] ruleNames = {
 		"start", "compare", "numeric", "sign", "decimal", "string", "intNumber", 
 		"longNumber", "number", "condition", "expression", "andCondition", "conditionRightHandSide", 
 		"value", "param", "id", "columnRef", "operand", "summand", "plusMinus", 
-		"factor", "mulDivMod", "term", "function", "caseWhen", "agg", "timeunit", 
-		"aggregation"
+		"factor", "mulDivMod", "term", "function", "caseWhen", "aggregationType", 
+		"timeUnit", "aggregation"
 	};
 
 	private static final String[] _LITERAL_NAMES = {
 		null, "'${'", "'}'", null, "'='", null, "'<'", "'<='", "'>'", "'>='", 
 		"'.'", null, null, "'CASE'", "'WHEN'", "'THEN'", "'ELSE'", "'END'", null, 
-		null, null, "'NOT'", "'*'", "'/'", "'%'", "'+'", "'-'", "'In'", "'IS'", 
-		"'NULL'", "'('", "')'", "','", "'BETWEEN'", "'LIKE'", "'COUNT'", "'SUM'", 
-		"'AVG'", "'MAX'", "'MIN'", "'WITHIN'", "'milliseconds'", "'seconds'", 
-		"'minutes'", "'hours'", "'days'"
+		null, null, null, "'*'", "'/'", "'%'", "'+'", "'-'", "'In'", "'IS'", "'NULL'", 
+		"'('", "')'", "','", "'BETWEEN'", "'LIKE'", null, null, null, null, null, 
+		"'within'", "'milliseconds'", "'seconds'", "'minutes'", "'hours'", "'days'"
 	};
 	private static final String[] _SYMBOLIC_NAMES = {
 		null, null, null, "Boolean", "Equal", "NotEqual", "LessThan", "LessThanOrEqual", 
@@ -1694,6 +1693,9 @@ public class ExpressionParser extends Parser {
 	}
 
 	public static class FunctionContext extends ParserRuleContext {
+		public AggregationContext aggregation() {
+			return getRuleContext(AggregationContext.class,0);
+		}
 		public TerminalNode ID() { return getToken(ExpressionParser.ID, 0); }
 		public TerminalNode LeftParen() { return getToken(ExpressionParser.LeftParen, 0); }
 		public TerminalNode RightParen() { return getToken(ExpressionParser.RightParen, 0); }
@@ -1706,9 +1708,6 @@ public class ExpressionParser extends Parser {
 		public List<TerminalNode> Comma() { return getTokens(ExpressionParser.Comma); }
 		public TerminalNode Comma(int i) {
 			return getToken(ExpressionParser.Comma, i);
-		}
-		public AggregationContext aggregation() {
-			return getRuleContext(AggregationContext.class,0);
 		}
 		public FunctionContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
@@ -1737,52 +1736,52 @@ public class ExpressionParser extends Parser {
 			setState(221);
 			_errHandler.sync(this);
 			switch (_input.LA(1)) {
-			case ID:
+			case Count:
+			case Sum:
+			case Avg:
+			case Max:
+			case Min:
 				enterOuterAlt(_localctx, 1);
 				{
 				setState(207);
-				match(ID);
+				aggregation();
+				}
+				break;
+			case ID:
+				enterOuterAlt(_localctx, 2);
+				{
 				setState(208);
+				match(ID);
+				setState(209);
 				match(LeftParen);
-				setState(217);
+				setState(218);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 				if ((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << T__0) | (1L << Boolean) | (1L << Dot) | (1L << STRING) | (1L << Case) | (1L << Digit) | (1L << Not) | (1L << Plus) | (1L << Minus) | (1L << Null) | (1L << LeftParen) | (1L << Count) | (1L << Sum) | (1L << Avg) | (1L << Max) | (1L << Min) | (1L << ID))) != 0)) {
 					{
-					setState(209);
+					setState(210);
 					expression();
-					setState(214);
+					setState(215);
 					_errHandler.sync(this);
 					_la = _input.LA(1);
 					while (_la==Comma) {
 						{
 						{
-						setState(210);
-						match(Comma);
 						setState(211);
+						match(Comma);
+						setState(212);
 						expression();
 						}
 						}
-						setState(216);
+						setState(217);
 						_errHandler.sync(this);
 						_la = _input.LA(1);
 					}
 					}
 				}
 
-				setState(219);
-				match(RightParen);
-				}
-				break;
-			case Count:
-			case Sum:
-			case Avg:
-			case Max:
-			case Min:
-				enterOuterAlt(_localctx, 2);
-				{
 				setState(220);
-				aggregation();
+				match(RightParen);
 				}
 				break;
 			default:
@@ -1885,34 +1884,34 @@ public class ExpressionParser extends Parser {
 		return _localctx;
 	}
 
-	public static class AggContext extends ParserRuleContext {
+	public static class AggregationTypeContext extends ParserRuleContext {
 		public TerminalNode Count() { return getToken(ExpressionParser.Count, 0); }
 		public TerminalNode Sum() { return getToken(ExpressionParser.Sum, 0); }
 		public TerminalNode Avg() { return getToken(ExpressionParser.Avg, 0); }
 		public TerminalNode Max() { return getToken(ExpressionParser.Max, 0); }
 		public TerminalNode Min() { return getToken(ExpressionParser.Min, 0); }
-		public AggContext(ParserRuleContext parent, int invokingState) {
+		public AggregationTypeContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
 		}
-		@Override public int getRuleIndex() { return RULE_agg; }
+		@Override public int getRuleIndex() { return RULE_aggregationType; }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof ExpressionListener ) ((ExpressionListener)listener).enterAgg(this);
+			if ( listener instanceof ExpressionListener ) ((ExpressionListener)listener).enterAggregationType(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof ExpressionListener ) ((ExpressionListener)listener).exitAgg(this);
+			if ( listener instanceof ExpressionListener ) ((ExpressionListener)listener).exitAggregationType(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof ExpressionVisitor ) return ((ExpressionVisitor<? extends T>)visitor).visitAgg(this);
+			if ( visitor instanceof ExpressionVisitor ) return ((ExpressionVisitor<? extends T>)visitor).visitAggregationType(this);
 			else return visitor.visitChildren(this);
 		}
 	}
 
-	public final AggContext agg() throws RecognitionException {
-		AggContext _localctx = new AggContext(_ctx, getState());
-		enterRule(_localctx, 50, RULE_agg);
+	public final AggregationTypeContext aggregationType() throws RecognitionException {
+		AggregationTypeContext _localctx = new AggregationTypeContext(_ctx, getState());
+		enterRule(_localctx, 50, RULE_aggregationType);
 		int _la;
 		try {
 			enterOuterAlt(_localctx, 1);
@@ -1940,33 +1939,33 @@ public class ExpressionParser extends Parser {
 		return _localctx;
 	}
 
-	public static class TimeunitContext extends ParserRuleContext {
+	public static class TimeUnitContext extends ParserRuleContext {
 		public TerminalNode MilliSeconds() { return getToken(ExpressionParser.MilliSeconds, 0); }
 		public TerminalNode Minutes() { return getToken(ExpressionParser.Minutes, 0); }
 		public TerminalNode Hours() { return getToken(ExpressionParser.Hours, 0); }
 		public TerminalNode Days() { return getToken(ExpressionParser.Days, 0); }
-		public TimeunitContext(ParserRuleContext parent, int invokingState) {
+		public TimeUnitContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
 		}
-		@Override public int getRuleIndex() { return RULE_timeunit; }
+		@Override public int getRuleIndex() { return RULE_timeUnit; }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof ExpressionListener ) ((ExpressionListener)listener).enterTimeunit(this);
+			if ( listener instanceof ExpressionListener ) ((ExpressionListener)listener).enterTimeUnit(this);
 		}
 		@Override
 		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof ExpressionListener ) ((ExpressionListener)listener).exitTimeunit(this);
+			if ( listener instanceof ExpressionListener ) ((ExpressionListener)listener).exitTimeUnit(this);
 		}
 		@Override
 		public <T> T accept(ParseTreeVisitor<? extends T> visitor) {
-			if ( visitor instanceof ExpressionVisitor ) return ((ExpressionVisitor<? extends T>)visitor).visitTimeunit(this);
+			if ( visitor instanceof ExpressionVisitor ) return ((ExpressionVisitor<? extends T>)visitor).visitTimeUnit(this);
 			else return visitor.visitChildren(this);
 		}
 	}
 
-	public final TimeunitContext timeunit() throws RecognitionException {
-		TimeunitContext _localctx = new TimeunitContext(_ctx, getState());
-		enterRule(_localctx, 52, RULE_timeunit);
+	public final TimeUnitContext timeUnit() throws RecognitionException {
+		TimeUnitContext _localctx = new TimeUnitContext(_ctx, getState());
+		enterRule(_localctx, 52, RULE_timeUnit);
 		int _la;
 		try {
 			enterOuterAlt(_localctx, 1);
@@ -1995,8 +1994,8 @@ public class ExpressionParser extends Parser {
 	}
 
 	public static class AggregationContext extends ParserRuleContext {
-		public AggContext agg() {
-			return getRuleContext(AggContext.class,0);
+		public AggregationTypeContext aggregationType() {
+			return getRuleContext(AggregationTypeContext.class,0);
 		}
 		public TerminalNode LeftParen() { return getToken(ExpressionParser.LeftParen, 0); }
 		public ExpressionContext expression() {
@@ -2007,8 +2006,8 @@ public class ExpressionParser extends Parser {
 		public IntNumberContext intNumber() {
 			return getRuleContext(IntNumberContext.class,0);
 		}
-		public TimeunitContext timeunit() {
-			return getRuleContext(TimeunitContext.class,0);
+		public TimeUnitContext timeUnit() {
+			return getRuleContext(TimeUnitContext.class,0);
 		}
 		public AggregationContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
@@ -2037,7 +2036,7 @@ public class ExpressionParser extends Parser {
 			enterOuterAlt(_localctx, 1);
 			{
 			setState(241);
-			agg();
+			aggregationType();
 			setState(242);
 			match(LeftParen);
 			setState(243);
@@ -2052,7 +2051,7 @@ public class ExpressionParser extends Parser {
 				setState(245);
 				intNumber();
 				setState(246);
-				timeunit();
+				timeUnit();
 				}
 			}
 
@@ -2088,8 +2087,8 @@ public class ExpressionParser extends Parser {
 		"\3\23\3\23\3\24\3\24\3\24\3\24\7\24\u00b5\n\24\f\24\16\24\u00b8\13\24"+
 		"\3\25\3\25\3\26\3\26\3\26\3\26\7\26\u00c0\n\26\f\26\16\26\u00c3\13\26"+
 		"\3\27\3\27\3\30\3\30\3\30\3\30\3\30\3\30\3\30\3\30\3\30\5\30\u00d0\n\30"+
-		"\3\31\3\31\3\31\3\31\3\31\7\31\u00d7\n\31\f\31\16\31\u00da\13\31\5\31"+
-		"\u00dc\n\31\3\31\3\31\5\31\u00e0\n\31\3\32\3\32\3\32\3\32\3\32\3\32\6"+
+		"\3\31\3\31\3\31\3\31\3\31\3\31\7\31\u00d8\n\31\f\31\16\31\u00db\13\31"+
+		"\5\31\u00dd\n\31\3\31\5\31\u00e0\n\31\3\32\3\32\3\32\3\32\3\32\3\32\6"+
 		"\32\u00e8\n\32\r\32\16\32\u00e9\3\32\3\32\3\32\3\32\3\33\3\33\3\34\3\34"+
 		"\3\35\3\35\3\35\3\35\3\35\3\35\3\35\5\35\u00fb\n\35\3\35\3\35\3\35\2\2"+
 		"\36\2\4\6\b\n\f\16\20\22\24\26\30\32\34\36 \"$&(*,.\60\62\64\668\2\7\3"+
@@ -2139,12 +2138,12 @@ public class ExpressionParser extends Parser {
 		"\t\3\2\2\u00c9\u00d0\5.\30\2\u00ca\u00cb\7 \2\2\u00cb\u00cc\5\26\f\2\u00cc"+
 		"\u00cd\7!\2\2\u00cd\u00d0\3\2\2\2\u00ce\u00d0\5\62\32\2\u00cf\u00c6\3"+
 		"\2\2\2\u00cf\u00c7\3\2\2\2\u00cf\u00c8\3\2\2\2\u00cf\u00ca\3\2\2\2\u00cf"+
-		"\u00ce\3\2\2\2\u00d0/\3\2\2\2\u00d1\u00d2\7\60\2\2\u00d2\u00db\7 \2\2"+
-		"\u00d3\u00d8\5\26\f\2\u00d4\u00d5\7\"\2\2\u00d5\u00d7\5\26\f\2\u00d6\u00d4"+
-		"\3\2\2\2\u00d7\u00da\3\2\2\2\u00d8\u00d6\3\2\2\2\u00d8\u00d9\3\2\2\2\u00d9"+
-		"\u00dc\3\2\2\2\u00da\u00d8\3\2\2\2\u00db\u00d3\3\2\2\2\u00db\u00dc\3\2"+
-		"\2\2\u00dc\u00dd\3\2\2\2\u00dd\u00e0\7!\2\2\u00de\u00e0\58\35\2\u00df"+
-		"\u00d1\3\2\2\2\u00df\u00de\3\2\2\2\u00e0\61\3\2\2\2\u00e1\u00e7\7\17\2"+
+		"\u00ce\3\2\2\2\u00d0/\3\2\2\2\u00d1\u00e0\58\35\2\u00d2\u00d3\7\60\2\2"+
+		"\u00d3\u00dc\7 \2\2\u00d4\u00d9\5\26\f\2\u00d5\u00d6\7\"\2\2\u00d6\u00d8"+
+		"\5\26\f\2\u00d7\u00d5\3\2\2\2\u00d8\u00db\3\2\2\2\u00d9\u00d7\3\2\2\2"+
+		"\u00d9\u00da\3\2\2\2\u00da\u00dd\3\2\2\2\u00db\u00d9\3\2\2\2\u00dc\u00d4"+
+		"\3\2\2\2\u00dc\u00dd\3\2\2\2\u00dd\u00de\3\2\2\2\u00de\u00e0\7!\2\2\u00df"+
+		"\u00d1\3\2\2\2\u00df\u00d2\3\2\2\2\u00e0\61\3\2\2\2\u00e1\u00e7\7\17\2"+
 		"\2\u00e2\u00e3\7\20\2\2\u00e3\u00e4\5\26\f\2\u00e4\u00e5\7\21\2\2\u00e5"+
 		"\u00e6\5\26\f\2\u00e6\u00e8\3\2\2\2\u00e7\u00e2\3\2\2\2\u00e8\u00e9\3"+
 		"\2\2\2\u00e9\u00e7\3\2\2\2\u00e9\u00ea\3\2\2\2\u00ea\u00eb\3\2\2\2\u00eb"+
@@ -2154,7 +2153,7 @@ public class ExpressionParser extends Parser {
 		"\u00f6\u00f7\7*\2\2\u00f7\u00f8\5\16\b\2\u00f8\u00f9\5\66\34\2\u00f9\u00fb"+
 		"\3\2\2\2\u00fa\u00f6\3\2\2\2\u00fa\u00fb\3\2\2\2\u00fb\u00fc\3\2\2\2\u00fc"+
 		"\u00fd\7!\2\2\u00fd9\3\2\2\2\32BGOTY`dhow\177\u0089\u0094\u0097\u009a"+
-		"\u00a2\u00b6\u00c1\u00cf\u00d8\u00db\u00df\u00e9\u00fa";
+		"\u00a2\u00b6\u00c1\u00cf\u00d9\u00dc\u00df\u00e9\u00fa";
 	public static final ATN _ATN =
 		new ATNDeserializer().deserialize(_serializedATN.toCharArray());
 	static {
