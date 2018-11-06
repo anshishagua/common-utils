@@ -19,9 +19,9 @@ public interface Expression {
     Expression getParent();
     String toSQL();
     Iterator<Expression> traverse(TraverseType traverseType);
-    List<Expression> getChildByType(Class<?> clazz);
+    <T extends Expression> List<T> getChildByType(Class<T> clazz);
     Expression replace(Expression source, Expression target);
-    Expression evaluate();
+    Literal evaluate();
     default <T extends Expression> T get() {
         return (T) this;
     }

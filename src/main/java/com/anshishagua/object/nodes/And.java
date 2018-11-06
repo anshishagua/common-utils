@@ -16,6 +16,6 @@ public class And extends AbstractExpression {
 
     @Override
     public String toSQL() {
-        return String.format("%s AND %s", getLeft(), getRight());
+        return String.format("%s AND %s", getLeft().toSQL(), getRight().toSQL());
     }
 }

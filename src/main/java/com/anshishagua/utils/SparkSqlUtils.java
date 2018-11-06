@@ -37,5 +37,6 @@ public class SparkSqlUtils {
         spark.udf().register("parse_timestamp", UserDefinedFunctions.PARSE_TIMESTAMP_LONG_PARAM, DataTypes.TimestampType);
         spark.udf().register("parse_timestamp", UserDefinedFunctions.PARSE_TIMESTAMP_STRING_PARAM, DataTypes.TimestampType);
         spark.udf().register("timestamp_within", UserDefinedFunctions.TIMESTAMP_WITHIN, DataTypes.BooleanType);
+        spark.udf().register("timestamp_within", UserDefinedFunctions.TIMESTAMP_WITHIN_LONG, DataTypes.BooleanType);
     }
 }

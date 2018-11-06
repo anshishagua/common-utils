@@ -20,6 +20,10 @@ public class Literal extends AbstractExpression {
         this.value = value;
     }
 
+    public LiteralType getType() {
+        return type;
+    }
+
     public <T> T getAs() {
         return (T) value;
     }
@@ -67,5 +71,10 @@ public class Literal extends AbstractExpression {
         }
 
         return value.toString();
+    }
+
+    @Override
+    public Literal evaluate() {
+        return this;
     }
 }

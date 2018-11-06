@@ -14,6 +14,16 @@ public enum ArithmeticCompareType {
         this.value = value;
     }
 
+    public static ArithmeticCompareType parseByValue(String value) {
+        for (ArithmeticCompareType type : values()) {
+            if (type.value.equals(value)) {
+                return type;
+            }
+        }
+
+        return null;
+    }
+
     public String getValue() {
         return value;
     }

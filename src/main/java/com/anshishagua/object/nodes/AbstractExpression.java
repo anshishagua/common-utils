@@ -107,13 +107,13 @@ public class AbstractExpression implements Expression {
         return postorder(this).iterator();
     }
 
-    public List<Expression> getAggregations() {
+    public List<Aggregation> getAggregations() {
         return getChildByType(Aggregation.class);
     }
 
     @Override
-    public List<Expression> getChildByType(Class<?> clazz) {
-        List<Expression> result = new ArrayList<>();
+    public <T extends Expression> List<T> getChildByType(Class<T> clazz) {
+        List<T> result = new ArrayList<>();
 
         Iterator<Expression> iterator = preorder();
 
@@ -121,7 +121,7 @@ public class AbstractExpression implements Expression {
             Expression expression = iterator.next();
 
             if (expression.getClass() == clazz) {
-                result.add(expression);
+                result.add((T) expression);
             }
         }
 
@@ -149,7 +149,7 @@ public class AbstractExpression implements Expression {
     }
 
     @Override
-    public Expression evaluate() {
-        return this;
+    public Literal evaluate() {
+        throw new RuntimeException();
     }
 }

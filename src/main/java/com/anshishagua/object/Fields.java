@@ -1,8 +1,12 @@
 package com.anshishagua.object;
 
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructType;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Fields implements Serializable {
     private List<Field> fields;
@@ -52,5 +56,9 @@ public class Fields implements Serializable {
         return "Fields{" +
                 "fields=" + fields +
                 '}';
+    }
+
+    public StructType toStructType() {
+        return DataTypes.createStructType(fields.stream().map(field -> field.toStructField()).collect(Collectors.toList()));
     }
 }

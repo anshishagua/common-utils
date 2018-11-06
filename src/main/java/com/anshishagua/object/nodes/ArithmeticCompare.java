@@ -11,13 +11,9 @@ import com.anshishagua.constants.ArithmeticCompareType;
 
 public class ArithmeticCompare extends AbstractExpression {
     private ArithmeticCompareType type;
-    private Expression left;
-    private Expression right;
 
     public ArithmeticCompare(ArithmeticCompareType type, Expression left, Expression right) {
         this.type = type;
-        this.left = left;
-        this.right = right;
 
         this.addChild(left);
         this.addChild(right);
@@ -25,6 +21,6 @@ public class ArithmeticCompare extends AbstractExpression {
 
     @Override
     public String toSQL() {
-        return String.format("%s %s %s", left.toSQL(), type.getValue(), right.toSQL());
+        return String.format("%s %s %s", getChild(0).toSQL(), type.getValue(), getChild(1).toSQL());
     }
 }

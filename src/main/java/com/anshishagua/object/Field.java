@@ -1,5 +1,9 @@
 package com.anshishagua.object;
 
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
+
 import java.io.Serializable;
 
 public class Field implements Serializable {
@@ -63,5 +67,25 @@ public class Field implements Serializable {
 
     public boolean isTimestamp() {
         return isTimestamp;
+    }
+
+    public StructField toStructField() {
+        DataType dataType = DataTypes.StringType;
+
+        switch (type) {
+            case "int":
+                dataType = DataTypes.IntegerType;
+                break;
+            case "long":
+                dataType = DataTypes.LongType;
+                break;
+            case "double":
+                dataType = DataTypes.DoubleType;
+                break;
+            default:
+                break;
+        }
+
+        return DataTypes.createStructField(name, dataType, false);
     }
 }

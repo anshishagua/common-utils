@@ -20,4 +20,12 @@ public class ArithmeticExpression extends AbstractExpression {
     public String toSQL() {
         return String.format("%s %s %s", left.toSQL(), type.getValue(), right.toSQL());
     }
+
+    @Override
+    public Literal evaluate() {
+        Literal a = left.evaluate();
+        Literal b = right.evaluate();
+
+        return null;
+    }
 }
