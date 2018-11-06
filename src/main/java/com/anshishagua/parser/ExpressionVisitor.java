@@ -27,7 +27,7 @@ import com.anshishagua.parser.generated.ExpressionParser;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Parser extends ExpressionBaseVisitor<Expression> {
+public class ExpressionVisitor extends ExpressionBaseVisitor<Expression> {
     @Override
     public Expression visitStart(ExpressionParser.StartContext context) {
         return visit(context.expression());

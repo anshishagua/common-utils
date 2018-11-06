@@ -36,6 +36,7 @@ public class AbstractExpression implements Expression {
         return children.get(i);
     }
 
+    @Override
     public String toSQL() {
         return null;
     }

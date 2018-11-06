@@ -1,32 +1,18 @@
 package com.anshishagua.object.nodes;
 
-import com.anshishagua.constants.AggregationType;
-import com.anshishagua.constants.ArithmeticCompareType;
-import com.anshishagua.constants.ArithmeticType;
 import com.anshishagua.constants.LiteralType;
 import com.anshishagua.object.Field;
 import com.anshishagua.object.Fields;
 import com.anshishagua.object.TimeCondition;
-import com.anshishagua.object.TimeUnit;
-import com.anshishagua.parser.Parser;
-import com.anshishagua.parser.generated.ExpressionLexer;
-import com.anshishagua.parser.generated.ExpressionParser;
+import com.anshishagua.parser.ExpressionParser;
 import com.anshishagua.utils.SparkSqlUtils;
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.tree.ParseTree;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 
-import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 public class Test {
@@ -65,18 +51,10 @@ public class Test {
 
     public static void main(String [] args) {
         String string = "SUM(person.money within 7 minutes) >= 100 and person.age >= 30 and person.age <= 40";
-        CharStream inputStream = CharStreams.fromString(string);
-        ExpressionLexer lexer = new ExpressionLexer(inputStream);
-        CommonTokenStream tokenStream = new CommonTokenStream(lexer);
-        ExpressionParser parser = new ExpressionParser(tokenStream);
 
-        ParseTree parseTree = parser.start();
-        Parser visitor = new Parser();
-
-        Expression expression = visitor.visit(parseTree);
+        Expression expression = ExpressionParser.parse(string);
 
         System.out.println(expression.toSQL());
-
 
         SparkSession spark = SparkSession.builder().master("local[*]").appName("aaa").getOrCreate();
 
