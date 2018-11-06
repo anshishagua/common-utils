@@ -31,33 +31,52 @@ public class UserDefinedFunctions {
         }
     };
 
+    private static int timeUnitFactor(String timeUnit) {
+        int factor = 1;
+
+        switch (timeUnit) {
+            case "seconds":
+                factor = 1000;
+                break;
+            case "minutes":
+                factor = 1000 * 60;
+                break;
+            case "hours":
+                factor = 1000 * 60 * 60;
+                break;
+            case "days":
+                factor = 1000 * 60 * 60 * 24;
+                break;
+            default:
+                break;
+        }
+
+        return factor;
+    }
+
+    public static final UDF3<Long, Long, String, Boolean> TIMESTAMP_WITHIN_LONG = new UDF3<Long, Long, String, Boolean>() {
+        @Override
+        public Boolean call(Long t1, Long t2, String s) {
+            String[] fields = s.split(" ");
+            int n = Integer.parseInt(fields[0].trim());
+            //milliseconds, seconds, minutes, hours, days,
+            String unit = fields[1].trim();
+
+            n *= timeUnitFactor(unit);
+
+            return Math.abs(t1 - t2) <= n;
+        }
+    };
+
     public static final UDF3<Timestamp, Timestamp, String, Boolean> TIMESTAMP_WITHIN = new UDF3<Timestamp, Timestamp, String, Boolean>() {
         @Override
         public Boolean call(Timestamp t1, Timestamp t2, String s) {
             String[] fields = s.split(" ");
             int n = Integer.parseInt(fields[0].trim());
-            int factor = 1;
             //milliseconds, seconds, minutes, hours, days,
             String unit = fields[1].trim();
 
-            switch (unit) {
-                case "seconds":
-                    factor = 1000;
-                    break;
-                case "minutes":
-                    factor = 1000 * 60;
-                    break;
-                case "hours":
-                    factor = 1000 * 60 * 60;
-                    break;
-                case "days":
-                    factor = 1000 * 60 * 60 * 24;
-                    break;
-                default:
-                    break;
-            }
-
-            n *= factor;
+            n *= timeUnitFactor(unit);
 
             return Math.abs(t1.getTime() - t2.getTime()) <= n;
         }

@@ -2,8 +2,6 @@ package com.anshishagua.object.nodes;
 
 import com.anshishagua.object.TimeCondition;
 
-import java.sql.Timestamp;
-
 /**
  * Sum.java
  *
@@ -11,7 +9,7 @@ import java.sql.Timestamp;
  * @date 2018-11-05
  */
 
-public class Sum implements Node {
-    private Node expression;
+public class Sum extends AbstractExpression {
+    private Expression expression;
     private TimeCondition timeCondition;
 }

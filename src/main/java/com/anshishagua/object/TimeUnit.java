@@ -8,9 +8,19 @@ package com.anshishagua.object;
  */
 
 public enum TimeUnit {
-    MILLI_SECONDS,
-    SECONDS,
-    MINUTES,
-    HOURS,
-    DAYS;
+    MILLI_SECONDS("milliseconds"),
+    SECONDS("seconds"),
+    MINUTES("minutes"),
+    HOURS("hours"),
+    DAYS("days");
+
+    private String value;
+
+    TimeUnit(String value) {
+        this.value = value;
+    }
+
+    public String getValue() {
+        return value;
+    }
 }
