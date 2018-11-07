@@ -51,6 +51,18 @@ public class Fields implements Serializable {
         return null;
     }
 
+    public Field getTimestampField() {
+        List<Field> list = fields.stream().filter(field -> field.isTimestamp()).collect(Collectors.toList());
+
+        return list.get(0);
+    }
+
+    public Field getPrimaryKeyField() {
+        List<Field> list = fields.stream().filter(field -> field.isPrimaryKey()).collect(Collectors.toList());
+
+        return list.get(0);
+    }
+
     @Override
     public String toString() {
         return "Fields{" +

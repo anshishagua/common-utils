@@ -1,20 +1,21 @@
 package com.anshishagua.utils;
 
 import com.alibaba.fastjson.JSON;
+import com.anshishagua.constants.LiteralType;
 import com.anshishagua.functions.ParseJson;
 import com.anshishagua.object.Event;
 import com.anshishagua.object.EventConfig;
+import com.anshishagua.object.EventState;
 import com.anshishagua.object.Events;
 import com.anshishagua.object.Field;
-import com.anshishagua.object.Fields;
-import com.anshishagua.object.HostPort;
+import com.anshishagua.object.KafkaDataSink;
 import com.anshishagua.object.KafkaDataSource;
-import com.anshishagua.object.Record;
 import com.anshishagua.object.SparkConfig;
-import com.anshishagua.object.StreamState;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.StringSerializer;
+import com.anshishagua.object.TimeCondition;
+import com.anshishagua.object.nodes.Aggregation;
+import com.anshishagua.object.nodes.Expression;
+import com.anshishagua.object.nodes.Literal;
+import com.anshishagua.parser.ExpressionParser;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.MapFunction;
@@ -27,6 +28,7 @@ import org.apache.spark.sql.streaming.GroupState;
 import org.apache.spark.sql.streaming.GroupStateTimeout;
 import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.StreamingQuery;
+import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,16 +76,11 @@ public class EventService {
         SparkSqlUtils.registerUdfs(spark);
 
         KafkaDataSource dataSource = new KafkaDataSource();
-        dataSource.setBootstrapServers(Arrays.asList(new HostPort("localhost", 9092)));
-        dataSource.setTopic("user-logs");
-        dataSource.setFields(Fields.newInstance(
-                new Field("id", "long"),
-                new Field("money", "double"),
-                new Field("timestamp", "long", true),
-                new Field("ip", "string")));
 
         String bootstrapServers = dataSource.getBootstrapServers().stream().map(it -> it.getHost() + ":" + it.getPort()).collect(Collectors.joining(","));
-        Dataset<Row> dataset = spark.readStream().format("kafka")
+        Dataset<Row> dataset = spark
+                .readStream()
+                .format("kafka")
                 .option("kafka.bootstrap.servers", bootstrapServers)
                 .option("subscribe", dataSource.getTopic())
                 .load()
@@ -103,67 +100,80 @@ public class EventService {
 
         dataset = dataset.selectExpr(selectExpressions.toArray(new String[0]));
 
-        dataset.printSchema();
+        StructType structType = dataSource.getFields().toStructType();
 
-        /*
-        dataset = dataset.selectExpr(
-                "cast(parse_json(value, 'id') as long) AS id",
-                "cast(parse_json(value, 'money') as double) AS money",
-                "cast(parse_json(value, 'timestamp') as long) AS timestamp",
-                "cast(parse_json(value, 'ip') as string) AS ip",
-                "value AS json");
-        */
+        Field timestampField = dataSource.getFields().getTimestampField();
 
-        //id, money, timestamp, ip, json
-        long threshold = 5 * 1000000;
+        String triggerCondition = eventConfig.getTriggerCondition();
 
-        StructType structType = dataset.schema();
-
-        Field timestampField = getTimestampField(dataSource.getFields());
-
-        String expression = "count() >= 5";
-
-        //count > 5
-        MapGroupsWithStateFunction<String, Row, StreamState, Events> function = new MapGroupsWithStateFunction<String, Row, StreamState, Events>() {
+        MapGroupsWithStateFunction<String, Row, EventState, Events> function = new MapGroupsWithStateFunction<String, Row, EventState, Events>() {
             @Override
-            public Events call(String key, Iterator<Row> values, GroupState<StreamState> state) throws Exception {
+            public Events call(String key, Iterator<Row> values, GroupState<EventState> state) throws Exception {
                 Events events = new Events();
 
                 while (values.hasNext()) {
                     Row row = values.next();
 
-                    //id, money, timestamp, ip, json
-                    long timestamp = row.getLong(timestampField.getIndex());
+                    if (!state.exists()) {
+                        EventState eventState = new EventState(Arrays.asList(row));
 
-                    LOG.warn("timestamp:" + timestamp);
+                        state.update(eventState);
+                        continue;
+                    }
 
-                    StreamState streamState = state.exists() ? state.get() : new StreamState();
+                    EventState eventState = state.get();
 
-                    List<Row> rows = new ArrayList<>();
+                    List<Row> rows = eventState.getRows();
+                    rows.add(row);
 
-                    List<Record> records = streamState.getRecords().stream().filter(record -> record.getTimestamp() >= (timestamp - threshold)).collect(Collectors.toList());
+                    Dataset<Row> df = spark.createDataFrame(rows, structType);
+                    String tempTableName = "table";
 
-                    int count = records.size() + 1;
+                    df.registerTempTable(tempTableName);
 
-                    //Field jsonField = dataSource.getFields().getField("json");
-                    String json = row.getString(4);
+                    Expression expression = ExpressionParser.parse(triggerCondition);
 
-                    if (count >= 5) {
-                        List<String> triggeredRecords = records.stream().map(record -> record.getValue()).collect(Collectors.toList());
-                        triggeredRecords.add(json);
+                    List<Aggregation> aggregations = expression.getChildByType(Aggregation.class);
+
+                    String sql = null;
+
+                    for (Aggregation aggregation : aggregations) {
+                        TimeCondition timeCondition = aggregation.getTimeCondition();
+
+                        String a = timestampField.getName();
+                        String b = row.getString(timestampField.getIndex());
+                        String timeQuery = timeCondition.toString();
+
+                        sql = String.format("select * from %s where timestamp_within(%s, %s, %s)", tempTableName, a, b, timeQuery);
+
+                        df = spark.sql(sql);
+
+                        aggregation.setTimeCondition(null);
+
+                        sql = String.format("select cast(" + aggregation.toSQL() + " as double) from %s", tempTableName);
+
+                        double value = spark.sql(sql).collectAsList().get(0).getDouble(0);
+
+                        expression = expression.replace(aggregation, new Literal(LiteralType.DOUBLE, value));
+                    }
+
+                    df = spark.createDataFrame(Arrays.asList(row), structType);
+                    df.registerTempTable(tempTableName);
+                    sql = String.format("SELECT * FROM %s WHERE %s", tempTableName, expression.toSQL());
+                    boolean eventTriggered = !spark.sql(sql).collectAsList().isEmpty();
+
+                    if (eventTriggered) {
+                        List<String> triggeredRecords = df.collectAsList().stream().map(it -> it.getString(dataSource.getFields().getField("json").getIndex())).collect(Collectors.toList());
+                        long timestamp = row.getTimestamp(timestampField.getIndex()).getTime();
 
                         Event event = new Event(timestamp, triggeredRecords);
 
-                        streamState.setRecords(new ArrayList<>());
-                        state.update(streamState);
-
                         events.addEvent(event);
+
+                        state.remove();
                     } else {
-                        records.add(new Record(timestamp, json));
-
-                        streamState.setRecords(records);
-
-                        state.update(streamState);
+                        eventState = new EventState(df.collectAsList());
+                        state.update(eventState);
                     }
                 }
 
@@ -171,16 +181,19 @@ public class EventService {
             }
         };
 
-        //id, money, timestamp, ip
-        Dataset<Events> eventsDataset = dataset.groupByKey(new MapFunction<Row, String>() {
+        Field primaryKeyField = dataSource.getFields().getPrimaryKeyField();
+
+        Dataset<Events> eventsDataset = dataset
+                .groupByKey(new MapFunction<Row, String>() {
             @Override
             public String call(Row value) {
-                return value.get(0).toString();
+                return value.get(primaryKeyField.getIndex()).toString();
             }
-        }, Encoders.STRING()).mapGroupsWithState(function,
-                Encoders.bean(StreamState.class),
-                Encoders.bean(Events.class),
-                GroupStateTimeout.ProcessingTimeTimeout());
+        }, Encoders.STRING())
+                .mapGroupsWithState(function,
+                        Encoders.bean(EventState.class),
+                        Encoders.bean(Events.class),
+                        GroupStateTimeout.ProcessingTimeTimeout());
 
         Dataset<Event> eventDataset = eventsDataset.flatMap(new FlatMapFunction<Events, Event>() {
             public Iterator<Event> call(Events events) {
@@ -190,31 +203,28 @@ public class EventService {
 
         Dataset<String> events = eventDataset.map(new MapFunction<Event, String>() {
             @Override
-            public String call(Event value) throws Exception {
+            public String call(Event value) {
                 return JSON.toJSONString(value);
             }
         }, Encoders.STRING());
 
-        //StreamingQuery query = events.writeStream().outputMode(OutputMode.Update()).format("console").start();
+        KafkaDataSink dataSink = eventConfig.getKafkaDataSink();
 
-        Properties properties = new Properties();
-        properties.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        properties.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        properties.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        properties.setProperty(ProducerConfig.ACKS_CONFIG, "1");
+        bootstrapServers = dataSink.getBootstrapServers().stream().map(hostPort -> String.format("%d:%s", hostPort.getHost(), hostPort.getPort())).collect(Collectors.joining(","));
 
-        KafkaProducer<String, String> kafkaProducer = new KafkaProducer<>(properties);
-        String topic = "event-logs";
-
-        StreamingQuery query = events.writeStream()
+        StreamingQuery query = events
+                .writeStream()
                 .format("kafka")
-                .option("kafka.bootstrap.servers", "localhost:9092")
-                .option("topic", topic)
+                .option("kafka.bootstrap.servers", bootstrapServers)
+                .option("topic", dataSink.getTopic())
                 .option("checkpointLocation", "/tmp")
                 .outputMode(OutputMode.Update())
                 .start();
 
-        query.awaitTermination();
-
+        try {
+            query.awaitTermination();
+        } catch (StreamingQueryException ex) {
+            LOG.warn("Exception", ex);
+        }
     }
 }

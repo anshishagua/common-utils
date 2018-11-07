@@ -23,4 +23,9 @@ public class TimeCondition {
     public TimeUnit getTimeUnit() {
         return timeUnit;
     }
+
+    @Override
+    public String toString() {
+        return String.format("%d %s", value, timeUnit.getValue());
+    }
 }
