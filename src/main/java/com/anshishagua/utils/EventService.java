@@ -158,12 +158,14 @@ public class EventService {
                     }
 
                     df = spark.createDataFrame(Arrays.asList(row), structType);
-                    df.registerTempTable(tempTableName);
-                    sql = String.format("SELECT * FROM %s WHERE %s", tempTableName, expression.toSQL());
-                    boolean eventTriggered = !spark.sql(sql).collectAsList().isEmpty();
+
+                    boolean eventTriggered = !df.filter(expression.toSQL()).collectAsList().isEmpty();
 
                     if (eventTriggered) {
-                        List<String> triggeredRecords = df.collectAsList().stream().map(it -> it.getString(dataSource.getFields().getField("json").getIndex())).collect(Collectors.toList());
+                        List<String> triggeredRecords = df.collectAsList()
+                                .stream()
+                                .map(it -> it.getString(dataSource.getFields().getField("json").getIndex()))
+                                .collect(Collectors.toList());
                         long timestamp = row.getTimestamp(timestampField.getIndex()).getTime();
 
                         Event event = new Event(timestamp, triggeredRecords);
@@ -212,12 +214,14 @@ public class EventService {
 
         bootstrapServers = dataSink.getBootstrapServers().stream().map(hostPort -> String.format("%d:%s", hostPort.getHost(), hostPort.getPort())).collect(Collectors.joining(","));
 
+        String checkpointLocation = String.format("/tmp/checkpoint/" + dataSink.getTopic());
+
         StreamingQuery query = events
                 .writeStream()
                 .format("kafka")
                 .option("kafka.bootstrap.servers", bootstrapServers)
                 .option("topic", dataSink.getTopic())
-                .option("checkpointLocation", "/tmp")
+                .option("checkpointLocation", checkpointLocation)
                 .outputMode(OutputMode.Update())
                 .start();
 
@@ -226,5 +230,9 @@ public class EventService {
         } catch (StreamingQueryException ex) {
             LOG.warn("Exception", ex);
         }
+    }
+
+    public static void main(String [] args) {
+
     }
 }
