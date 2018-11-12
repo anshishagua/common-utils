@@ -3,7 +3,9 @@ grammar Pig;
 program: statement* EOF;
 
 statement :
-            COMMENT |
+            COMMENT
+          | END_OF_LINE_COMMENT
+          |
           (
             setStatement
           | loadStatement
@@ -13,14 +15,46 @@ statement :
           | filterStatement
           | joinStatement
           | groupStatement
-          | unionStatement) END_OF_LINE_COMMENT?;
+          | unionStatement
+          | registerStatement
+          | splitStatement
+          | defineStatement
+          ) END_OF_LINE_COMMENT?;
+
+opClause : setClause
+         | loadClause
+         | forEachClause
+         | storeClause
+         | distinctClause
+         | filterClause
+         | joinClause
+         | groupClause
+         | unionClause
+         | registerClause
+         | splitClause
+         ;
+
+defineStatement: DEFINE IDENTIFIER funcCall SEMI_COLON?;
+
+splitStatement: splitClause SEMI_COLON?;
+splitClause: SPLIT rel INTO split_branch (COMMA split_branch)* split_otherwise?;
+
+split_branch : IDENTIFIER IF ((LEFT_PAREN condition RIGHT_PAREN) | condition);
+split_otherwise: COMMA IDENTIFIER OTHERWISE;
+
+registerStatement: registerClause SEMI_COLON;
+registerClause: REGISTER ~(SEMI_COLON | AS)+ (AS IDENTIFIER)?;
+
+PARENT_PATH: PERIOD PERIOD;
+
+REGISTER: 'REGISTER' | 'register';
 
 LOAD: 'LOAD';
 
 fragment LETTER: [a-zA-Z];
 fragment DIGIT: [0-9];
-INTEGER: DIGIT+;
-LONGINTEGER: INTEGER 'L';
+INTEGER: MINUS? DIGIT+;
+LONGINTEGER: MINUS? INTEGER 'L';
 UNDER_SCORE: '_';
 
 DOLAR: '$';
@@ -33,7 +67,7 @@ SINGLE_QUOTE: '\'';
 USING: 'USING';
 LEFT_PAREN: '(';
 RIGHT_PAREN: ')';
-AS: 'AS';
+AS: 'AS' | 'as';
 COLON: ':';
 
 dataType : BOOLEAN_TYPE
@@ -50,11 +84,11 @@ dataType : BOOLEAN_TYPE
 
 //tupleSchema: IDENTIFIER (COLON TUPLE) LEFT_PAREN IDENTIFIER RIGHT_PAREN
 
-MAP: 'map';
-TUPLE: 'tuple';
+MAP: 'MAP';
+TUPLE: 'TUPLE';
 
 STAR: '*';
-PATH_SEP: '/';
+//PATH_SEP: '/';
 BOOLEAN_TYPE: 'boolean';
 INT_TYPE: 'int';
 LONG_TYPE: 'long';
@@ -68,47 +102,80 @@ BIGDECIMAL_TYPE: 'bigdecimal';
 COMMA: ',';
 fieldDefinetion: IDENTIFIER (COLON dataType)?;
 function: IDENTIFIER LEFT_PAREN RIGHT_PAREN;
-bbb: IDENTIFIER;
 
-setStatement: SET className propertyValue SEMI_COLON;
+setStatement: setClause SEMI_COLON?;
+setClause: SET className propertyValue;
 
-propertyValue: scalar | className;
+
+propertyValue: MINUS? (scalar | className);
 loadStatement: IDENTIFIER ASSIGN loadClause;
-loadClause: LOAD PARAM_PATTERN schema PARAM_PATTERN (USING function)?
-(AS LEFT_PAREN fieldDefinetion (COMMA fieldDefinetion)*  RIGHT_PAREN)? SEMI_COLON;
+loadClause: LOAD PARAM_PATTERN directory PARAM_PATTERN (USING function)?
+(AS LEFT_PAREN fieldDefinetion (COMMA fieldDefinetion)*  RIGHT_PAREN)? SEMI_COLON?;
 
-schema: IDENTIFIER ('|' (IDENTIFIER ASSIGN .*) (COMMA IDENTIFIER EQ scalar)*)?;
+//schema: ~('#')+;
 
-forEachStatement: IDENTIFIER ASSIGN FOREACH rel (foreach_plan_complex | ( foreach_generate_simple parallelClause?)) SEMI_COLON;
+forEachStatement: IDENTIFIER ASSIGN forEachClause SEMI_COLON?;
 
+forEachClause: FOREACH rel (foreach_plan_complex | ( foreach_generate_simple parallelClause?));
 foreach_generate_simple : GENERATE flatten_generated_item (COMMA flatten_generated_item )*;
 
 foreach_plan_complex : LEFT_BRACE nested_blk RIGHT_BRACE;
 
-flatten_generated_item: flatten_clause generate_as_clause? | expr generate_as_clause?;
+flatten_generated_item: flatten_clause generate_as_clause? | real_arg generate_as_clause?;
 
 generate_as_clause : AS ( (LEFT_PAREN field_def_list RIGHT_PAREN) | explicit_field_def );
 field_def_list : field_def ( ',' field_def )*;
 field_def : explicit_field_def;
 explicit_field_def : IDENTIFIER (COLON dataType)? | dataType;
-flatten_clause: FLATTERN LEFT_PAREN expr RIGHT_PAREN;
+flatten_clause: FLATTEN LEFT_PAREN expr RIGHT_PAREN;
 
 nested_blk : (nested_command SEMI_COLON)* GENERATE flatten_generated_item (COMMA flatten_generated_item )* SEMI_COLON;
 
-nested_command: 'AAAAA';
+nested_command :
+  IDENTIFIER ASSIGN condition
+ | IDENTIFIER ASSIGN nested_op;
 
-//STORE alias INTO 'directory' [USING function];
-storeStatement: STORE IDENTIFIER INTO PARAM_PATTERN directory PARAM_PATTERN SEMI_COLON;
+nested_op : nested_filter
+          | nested_sort
+          | nested_distinct
+          | nested_limit
+          | nested_cross
+| nested_foreach;
 
+
+nested_foreach : FOREACH nested_op_input GENERATE flatten_generated_item (COMMA flatten_generated_item )*;
+nested_cross : CROSS nested_op_input_list;
+nested_op_input_list : nested_op_input (COMMA nested_op_input )*;
+nested_limit : LIMIT nested_op_input ( (INTEGER SEMI_COLON) FAT_ARROW  INTEGER | expr );
+nested_distinct : DISTINCT nested_op_input;
+nested_sort : ORDER nested_op_input BY order_by_clause (USING funcCall)?;
+order_by_clause : STAR ( ASC | DESC )? | order_col_list;
+order_col_list : order_col ( ',' order_col )*;
+order_col : col_range (ASC | DESC)?
+          | col_ref ( ASC | DESC )?
+| LEFT_PAREN col_ref ( ASC | DESC )? RIGHT_PAREN;
+col_range : col_ref '..' col_ref?
+| '..' col_ref;
+
+
+nested_filter : FILTER nested_op_input BY condition;
+nested_op_input : col_ref | nested_proj;
+col_ref: IDENTIFIER | DOLLAR_VAR;
+nested_proj: col_ref '.' col_ref_list;
+col_ref_list : ( col_ref | ( LEFT_PAREN col_ref (COMMA col_ref )* RIGHT_PAREN));
+
+
+storeStatement: storeClause SEMI_COLON?;
+storeClause: STORE IDENTIFIER INTO PARAM_PATTERN directory PARAM_PATTERN;
 //alias = DISTINCT alias [PARTITION BY partitioner] [PARALLEL n];
-distinctStatement: IDENTIFIER ASSIGN DISTINCT IDENTIFIER;
-
+distinctStatement: IDENTIFIER ASSIGN distinctClause SEMI_COLON?;
+distinctClause: DISTINCT IDENTIFIER parallelClause?;
 //alias = FILTER alias  BY expression;
-filterStatement: IDENTIFIER ASSIGN FILTER IDENTIFIER BY condition SEMI_COLON;
-
+filterStatement: IDENTIFIER ASSIGN filterClause SEMI_COLON?;
+filterClause: FILTER IDENTIFIER BY condition;
 //alias = JOIN alias BY {expression|'('expression [, expression …]')'} (, alias BY {expression|'('expression [, expression …]')'} …) [USING 'replicated' | 'bloom' | 'skewed' | 'merge' | 'merge-sparse'] [PARTITION BY partitioner] [PARALLEL n];
 
-joinStatement: IDENTIFIER ASSIGN joinClause SEMI_COLON;
+joinStatement: IDENTIFIER ASSIGN joinClause SEMI_COLON?;
 
 joinClause: JOIN joinSubClause (USING joinType)? partitionCaluse? parallelClause?;
 joinType: QUOTEDSTRING;
@@ -116,26 +183,53 @@ joinSubClause: joinItem ( ( ( LEFT | RIGHT | FULL ) OUTER? COMMA joinItem ) | ( 
 joinItem : rel joinGroupByClause;
 joinGroupByClause : BY ((LEFT_PAREN arg (COMMA arg)* RIGHT_PAREN) | arg);
 arg: IDENTIFIER | STAR;
-rel : IDENTIFIER;
+rel : IDENTIFIER |  previous_rel | nested_op_clause;
+previous_rel : AT;
+nested_op_clause: LEFT_PAREN opClause parallelClause? RIGHT_PAREN
+                  | LEFT_PAREN FOREACH rel ( foreach_plan_complex | ( foreach_generate_simple parallelClause? ) ) RIGHT_PAREN;
+
+
+AT: '@';
 partitionCaluse : PARTITION BY className;
 parallelClause: PARALLEL INTEGER;
-groupStatement: rel ASSIGN GROUP rel (ALL | expr) (COMMA rel (ALL | expr))* (USING QUOTEDSTRING)?
-    partitionCaluse? parallelClause? SEMI_COLON;
+groupStatement: rel ASSIGN groupClause SEMI_COLON?;
 
-unionStatement: rel ASSIGN UNION ONSCHEMA? rel COMMA rel (COMMA rel)* parallelClause? SEMI_COLON;
+groupClause: GROUP group_item_list ( USING QUOTEDSTRING )? parallelClause?;
+group_item_list : group_item (COMMA group_item )*;
+group_item : rel ( join_group_by_clause | ALL | ANY ) ( INNER | OUTER )?;
+join_group_by_clause : BY ((LEFT_PAREN arg_list RIGHT_PAREN) | real_arg );
+arg_list : real_arg (COMMA real_arg )* ;
+real_arg : biConExpr | STAR | col_range;
 
-directory: IDENTIFIER;
 
-condition : andCondition  (OR andCondition)*;
+unionStatement: rel ASSIGN unionClause SEMI_COLON?;
+unionClause: UNION ONSCHEMA? rel COMMA rel (COMMA rel)* parallelClause?;
+
+//directory: IDENTIFIER
+//(VERTICAL_LINE IDENTIFIER ASSIGN propertyValue (COMMA IDENTIFIER ASSIGN propertyValue)*)?
+//| IDENTIFIER (COLON propertyValue);
+
+directory: ~(PARENT_PATH)+;
+
+parenCondition: LEFT_PAREN condition RIGHT_PAREN;
+
+condition : parenCondition | andCondition (OR andCondition)* | funcCall;
 
 andCondition : notCondition (AND notCondition)*
 ;
 
 notCondition : NOT? unaryCondition;
 
-unaryCondition: expr ((IS (NOT)? NULL ) | (relOp expr))?;
+unaryCondition: LEFT_PAREN condition RIGHT_PAREN | expr ((IS (NOT)? NULL ) | (IN LEFT_PAREN biConExpr (COMMA biConExpr)* RIGHT_PAREN) | (relOp expr));
 
-expr : multiExpr ((PLUS | MINUS) multiExpr)*;
+parenExpr: LEFT_PAREN expr RIGHT_PAREN;
+
+
+
+expr :
+      parenExpr
+   |  multiExpr ((PLUS | MINUS) multiExpr)*
+   ;
 
 multiExpr : castExpr ((STAR | DIV | MOD) castExpr)*
 ;
@@ -145,9 +239,21 @@ basicExpression: scalar | IDENTIFIER | IDENTIFIER PERIOD IDENTIFIER | IDENTIFIER
 
 castType: LEFT_PAREN dataType RIGHT_PAREN;
 
-castExpr: castType? basicExpression | parenExpr;
+castExpr : castType? basicExpression
+        | caseWhenExpr
+        | parenExpr
+        | scalar
+        | funcCall
+        ;
 
-parenExpr: LEFT_PAREN condition RIGHT_PAREN;
+biConExpr: LEFT_PAREN biConExpr RIGHT_PAREN
+| condition QMARK biConExpr COLON biConExpr
+| multiExpr ((PLUS | MINUS) multiExpr)*  ;
+
+caseWhenExpr:
+    CASE biConExpr (WHEN biConExpr THEN biConExpr)+ (ELSE biConExpr)? END
+    | CASE (WHEN condition THEN biConExpr)+  (ELSE biConExpr)? END
+    ;
 
 scalar : INTEGER
        | LONGINTEGER
@@ -176,6 +282,15 @@ relStrOp   : STR_OP_EQ
            | STR_OP_LTE
 | STR_OP_MATCHES;
 
+CASE: 'CASE';
+WHEN: 'WHEN';
+THEN: 'THEN';
+ELSE: 'ELSE';
+END: 'END';
+STDIN: 'STDIN';
+STDOUT: 'STDOUNT';
+OTHERWISE: 'OTHERWISE';
+IF: 'IF';
 PARTITION: 'PARTITION';
 UNION: 'UNION';
 ALL: 'ALL';
@@ -186,12 +301,13 @@ OUTER: 'OUNTER';
 ONSCHEMA: 'ONSCHEMA';
 LEFT_BRACE: '{';
 RIGHT_BRACE: '}';
-
+DEFINE: 'DEFINE';
+SPLIT: 'SPLIT';
 JOIN: 'JOIN';
 PARALLEL: 'PARALLEL';
 GROUP: 'GROUP';
 
-SET: 'SET';
+SET: 'SET' | 'set';
 
 STR_OP_EQ : 'EQ'
 ;
@@ -217,13 +333,15 @@ STR_OP_MATCHES : 'MATCHES' | 'matches'
 DOUBLENUMBER : INTEGER (PERIOD INTEGER)? | PERIOD INTEGER
 ;
 
+VERTICAL_LINE: '|';
+
 TRUE : 'TRUE'
 ;
 
 FALSE : 'FALSE'
 ;
 
-FLATTERN: 'FLATTERN';
+FLATTEN: 'FLATTEN';
 
 QUOTEDSTRING :  '\'' (   ( ~ ( '\'' | '\\' | '\n' | '\r' ) )
                        | ( '\\' ( ( 'N' | 'T' | 'B' | 'R' | 'F' | '\\' | '\'' ) ) )
@@ -248,6 +366,8 @@ FOREACH: 'FOREACH';
 GENERATE: 'GENERATE';
 ASSIGN: '=';
 
+ASC: 'ASC';
+DESC: 'DESC';
 
 PLUS: '+';
 MINUS: '-';
@@ -259,7 +379,7 @@ QMARK: '?';
 AND: 'AND';
 OR: 'OR';
 NOT: 'NOT';
-IN: 'IN';
+IN: 'IN' | 'in';
 
 EQ: '==';
 NEQ: '!=';
@@ -268,18 +388,32 @@ LTE: '<=';
 GT: '>';
 GTE: '>=';
 
-IS: 'is';
-NULL: 'null';
+FAT_ARROW: '=>';
+IS: 'IS' | 'is';
+NULL: 'NULL' | 'null';
 
 nullExpression: IDENTIFIER IS (NOT)? NULL;
 
-className: IDENTIFIER (PERIOD IDENTIFIER)*;
+
+funcCall: className LEFT_PAREN biConExpr? (COMMA biConExpr)* RIGHT_PAREN;
+
+
+//file: FILENAME;
+//FILENAME: (PERIOD | PARENT_PATH)? (PATH_SEP (LETTER (LETTER | DIGIT | MINUS)))+ PERIOD LETTER+;
+
+
 IDENTIFIER: LETTER (LETTER | DIGIT | UNDER_SCORE)*;
 
+className: IDENTIFIER (PERIOD IDENTIFIER)*;
+
+
+
 DOLLAR_VAR: DOLAR INTEGER;
-END_OF_LINE_COMMENT: '--' .* '\n';
+END_OF_LINE_COMMENT: MINUS MINUS ~('\n')* '\n';
 
 COMMENT:            '/*' .*? '*/';
+
+
 
 WS
    : [ \t\r\n]+ -> skip

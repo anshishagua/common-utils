@@ -38,6 +38,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-freemarker</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.alibaba</groupId>
       <artifactId>fastjson</artifactId>
       <version>1.2.51</version>
@@ -175,6 +180,12 @@
       <version>4.11</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.pig</groupId>
+      <artifactId>pig</artifactId>
+      <version>0.17.0</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -187,6 +198,7 @@
           <target>1.8</target>
         </configuration>
       </plugin>
+
       <!--
       <plugin>
         <groupId>org.springframework.boot</groupId>
@@ -196,6 +208,7 @@
         </configuration>
       </plugin>
       -->
+
     </plugins>
   </build>
 </project>
