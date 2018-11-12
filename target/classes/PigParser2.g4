@@ -1,63 +1,7 @@
-grammar Parser;
+grammar PigParser2;
 
+program : statement* EOF;
 
-scalar : INTEGER
-       | LONGINTEGER
-       | FLOATNUMBER
-       | DOUBLENUMBER
-       | BIGINTEGERNUMBER
-       | BIGDECIMALNUMBER
-       | QUOTEDSTRING
-       | NULL
-       | TRUE
-       | FALSE
-;
-
-statement : SEMI_COLON
-          | general_statement SEMI_COLON
-          | split_clause SEMI_COLON
-          | inline_clause SEMI_COLON
-          | import_clause SEMI_COLON
-          | realias_clause SEMI_COLON
-          | register_clause SEMI_COLON
-          | assert_clause SEMI_COLON
-          | foreach_statement
-;
-
-
-
-general_statement : FAT_ARROW ( ( op_clause parallel_clause? ) | nested_op_clause ) -> ^( STATEMENT IDENTIFIER["____RESERVED____"] op_clause? parallel_clause? nested_op_clause? )
-                  | ( identifier_plus EQUAL )? ( ( op_clause parallel_clause? ) | nested_op_clause ) -> ^( STATEMENT identifier_plus? op_clause? parallel_clause? nested_op_clause? )
-;
-
-op_clause : define_clause
-          | load_clause
-          | group_clause
-          | cube_clause
-          | store_clause
-          | filter_clause
-          | distinct_clause
-          | limit_clause
-          | sample_clause
-          | order_clause
-          | rank_clause
-          | cross_clause
-          | join_clause
-          | union_clause
-          | stream_clause
-          | mr_clause
-
-identifier_plus : IDENTIFIER | reserved_identifier_whitelist -> IDENTIFIER[$reserved_identifier_whitelist.text]
-
-
-reserved_identifier_whitelist : RANK
-                              | CUBE
-                              | IN
-                              | WHEN
-                              | THEN
-                              | ELSE
-                              | END
-;
 
 
 VOID    : 'VOID'

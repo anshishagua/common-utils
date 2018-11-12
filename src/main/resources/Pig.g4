@@ -205,11 +205,7 @@ real_arg : biConExpr | STAR | col_range;
 unionStatement: rel ASSIGN unionClause SEMI_COLON?;
 unionClause: UNION ONSCHEMA? rel COMMA rel (COMMA rel)* parallelClause?;
 
-//directory: IDENTIFIER
-//(VERTICAL_LINE IDENTIFIER ASSIGN propertyValue (COMMA IDENTIFIER ASSIGN propertyValue)*)?
-//| IDENTIFIER (COLON propertyValue);
-
-directory: ~(PARENT_PATH)+;
+directory: ~(PARAM_PATTERN)+;
 
 parenCondition: LEFT_PAREN condition RIGHT_PAREN;
 
@@ -411,10 +407,9 @@ className: IDENTIFIER (PERIOD IDENTIFIER)*;
 DOLLAR_VAR: DOLAR INTEGER;
 END_OF_LINE_COMMENT: MINUS MINUS ~('\n')* '\n';
 
-COMMENT:            '/*' .*? '*/';
+COMMENT: '/*' .*? '*/';
 
 
 
-WS
-   : [ \t\r\n]+ -> skip
+WS : [ \t\r\n]+ -> skip
    ;
