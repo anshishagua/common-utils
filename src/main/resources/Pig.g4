@@ -3,10 +3,6 @@ grammar Pig;
 program: statement* EOF;
 
 statement :
-            COMMENT
-          | END_OF_LINE_COMMENT
-          |
-          (
             setStatement
           | loadStatement
           | forEachStatement
@@ -19,7 +15,7 @@ statement :
           | registerStatement
           | splitStatement
           | defineStatement
-          ) END_OF_LINE_COMMENT?;
+          ;
 
 opClause : setClause
          | loadClause
@@ -43,12 +39,12 @@ split_branch : IDENTIFIER IF ((LEFT_PAREN condition RIGHT_PAREN) | condition);
 split_otherwise: COMMA IDENTIFIER OTHERWISE;
 
 registerStatement: registerClause SEMI_COLON;
-registerClause: REGISTER ~(SEMI_COLON | AS)+ (AS IDENTIFIER)?;
+registerClause: REGISTER registerFile (USING className)? (AS IDENTIFIER)?;
+registerFile: ~(SEMI_COLON | AS | USING)+;
 
 PARENT_PATH: PERIOD PERIOD;
 
 REGISTER: 'REGISTER' | 'register';
-
 LOAD: 'LOAD';
 
 fragment LETTER: [a-zA-Z];
@@ -169,7 +165,7 @@ storeStatement: storeClause SEMI_COLON?;
 storeClause: STORE IDENTIFIER INTO PARAM_PATTERN directory PARAM_PATTERN;
 //alias = DISTINCT alias [PARTITION BY partitioner] [PARALLEL n];
 distinctStatement: IDENTIFIER ASSIGN distinctClause SEMI_COLON?;
-distinctClause: DISTINCT IDENTIFIER parallelClause?;
+distinctClause: DISTINCT rel parallelClause?;
 //alias = FILTER alias  BY expression;
 filterStatement: IDENTIFIER ASSIGN filterClause SEMI_COLON?;
 filterClause: FILTER IDENTIFIER BY condition;
@@ -216,7 +212,9 @@ andCondition : notCondition (AND notCondition)*
 
 notCondition : NOT? unaryCondition;
 
-unaryCondition: LEFT_PAREN condition RIGHT_PAREN | expr ((IS (NOT)? NULL ) | (IN LEFT_PAREN biConExpr (COMMA biConExpr)* RIGHT_PAREN) | (relOp expr));
+unaryCondition: LEFT_PAREN condition RIGHT_PAREN
+| expr ((IS (NOT)? NULL ) | (IN LEFT_PAREN biConExpr (COMMA biConExpr)* RIGHT_PAREN) | (relOp expr))
+| funcCall;
 
 parenExpr: LEFT_PAREN expr RIGHT_PAREN;
 
@@ -224,14 +222,18 @@ parenExpr: LEFT_PAREN expr RIGHT_PAREN;
 
 expr :
       parenExpr
-   |  multiExpr ((PLUS | MINUS) multiExpr)*
+   |  multiExpr (plusMinusOp multiExpr)*
    ;
 
-multiExpr : castExpr ((STAR | DIV | MOD) castExpr)*
+plusMinusOp: PLUS | MINUS;
+
+mulDivModOp: STAR | DIV | MOD;
+
+multiExpr : castExpr (mulDivModOp castExpr)*
 ;
 
 //param: ''
-basicExpression: scalar | IDENTIFIER | IDENTIFIER PERIOD IDENTIFIER | IDENTIFIER COLON COLON IDENTIFIER | STAR;
+basicExpression: scalar | IDENTIFIER | IDENTIFIER PERIOD IDENTIFIER | IDENTIFIER DOUBLE_COLON IDENTIFIER | STAR;
 
 castType: LEFT_PAREN dataType RIGHT_PAREN;
 
@@ -244,7 +246,7 @@ castExpr : castType? basicExpression
 
 biConExpr: LEFT_PAREN biConExpr RIGHT_PAREN
 | condition QMARK biConExpr COLON biConExpr
-| multiExpr ((PLUS | MINUS) multiExpr)*  ;
+| multiExpr (plusMinusOp multiExpr)*  ;
 
 caseWhenExpr:
     CASE biConExpr (WHEN biConExpr THEN biConExpr)+ (ELSE biConExpr)? END
@@ -277,6 +279,8 @@ relStrOp   : STR_OP_EQ
            | STR_OP_GTE
            | STR_OP_LTE
 | STR_OP_MATCHES;
+
+DOUBLE_COLON: '::';
 
 CASE: 'CASE';
 WHEN: 'WHEN';
@@ -365,6 +369,11 @@ ASSIGN: '=';
 ASC: 'ASC';
 DESC: 'DESC';
 
+CROSS: 'CROSS';
+LIMIT: 'LIMIT';
+ORDER: 'ORDER';
+ANY: 'ANY';
+INNER: 'INNER';
 PLUS: '+';
 MINUS: '-';
 MUL: '*';

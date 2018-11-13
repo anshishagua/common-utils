@@ -1,7 +1,6 @@
 
 import antlr4
 
-
 class TreeNode(object):
     def __init__(self):
         self.parent = None
