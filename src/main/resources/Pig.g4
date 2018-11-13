@@ -210,6 +210,8 @@ condition : parenCondition | andCondition (OR andCondition)* | funcCall;
 andCondition : notCondition (AND notCondition)*
 ;
 
+condition:
+
 notCondition : NOT? unaryCondition;
 
 unaryCondition: LEFT_PAREN condition RIGHT_PAREN
@@ -219,10 +221,21 @@ unaryCondition: LEFT_PAREN condition RIGHT_PAREN
 parenExpr: LEFT_PAREN expr RIGHT_PAREN;
 
 
-
 expr :
-      parenExpr
-   |  multiExpr (plusMinusOp multiExpr)*
+      LEFT_PAREN expr RIGHT_PAREN
+   | scalar
+   | IDENTIFIER
+   | LEFT_PAREN dataType RIGHT_PAREN expr
+   | NOT expr
+   | expr mulDivModOp expr
+   | expr plusMinusOp expr
+   | expr relOp expr
+   | expr AND expr
+   | expr OR expr
+   | LEFT_PAREN dataType RIGHT_PAREN expr
+   | funcCall
+   | expr QMARK expr COLON expr
+   | caseWhenExpr
    ;
 
 plusMinusOp: PLUS | MINUS;
@@ -249,8 +262,8 @@ biConExpr: LEFT_PAREN biConExpr RIGHT_PAREN
 | multiExpr (plusMinusOp multiExpr)*  ;
 
 caseWhenExpr:
-    CASE biConExpr (WHEN biConExpr THEN biConExpr)+ (ELSE biConExpr)? END
-    | CASE (WHEN condition THEN biConExpr)+  (ELSE biConExpr)? END
+    CASE expr (WHEN expr THEN expr)+ (ELSE expr)? END
+    | CASE (WHEN expr THEN expr)+  (ELSE expr)? END
     ;
 
 scalar : INTEGER
