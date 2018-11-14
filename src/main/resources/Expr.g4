@@ -1,35 +1,47 @@
 grammar Expr;
 
 
-INTEGER: [0-9]+;
+INTEGER: '-'? [0-9]+;
+LONG: '-'? INTEGER 'L';
 
 condition:
-            condition 'AND' condition
-            | condition 'OR' condition
-            | 'NOT' condition
-            | expr COMPARE expr
-            | func
+
+            //| func
             | '(' condition ')'
             ;
 
 COMPARE: '>' | '>=' | '<' | '<=' | '==' | '!=';
 
-func: IDENTIFIER '(' (expr (',' expr)*)? ')';
+func: funcName '(' (expr (',' expr)*)? ')';
 
+funcName: IDENTIFIER ('.' IDENTIFIER)?;
 
 expr:
-     '(' expr ')'
+    '(' expr ')'
+    | func
     | INTEGER
+    | LONG
+    | STRING
     | IDENTIFIER
+    | IDENTIFIER '.' IDENTIFIER
+    | IDENTIFIER '::' IDENTIFIER
     | '(' DATA_TYPE ')' expr
     | expr ('/' | '*' | '%') expr
     | expr ('+' | '-') expr
-    | expr '?' expr ':' expr
     | 'CASE' expr 'WHEN' expr 'THEN' expr 'ELSE' expr 'END'
-    | func
+    | 'CASE' ('WHEN' expr 'THEN' expr)+ ('ELSE' expr)? 'END'
+    | expr COMPARE expr
+    | expr 'IS' ('NOT')? 'NULL'
+    | expr 'IN' '(' expr (',' expr)* ')'
+    | expr 'AND' expr
+    | expr 'OR' expr
+    | 'NOT' expr
+    | expr '?' expr ':' expr
     ;
 
-DATA_TYPE: 'int' | 'float';
+STRING: '\'' ~('\'')* '\'';
+
+DATA_TYPE: 'int' | 'float' | 'long' | 'chararray';
 fragment LETTER: [a-zA-Z];
 fragment DIGIT: [0-9];
 UNDER_SCORE: '_';
