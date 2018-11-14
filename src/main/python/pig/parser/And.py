@@ -7,3 +7,6 @@ class And(Node):
         self.right = right
         self.type = "AND"
 
+    def __str__(self):
+        return "%s AND %s" % (self.left, self.right)
+

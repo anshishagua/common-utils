@@ -208,29 +208,30 @@ union_clause: UNION ONSCHEMA? rel COMMA rel (COMMA rel)* parallel_clause?;
 directory: ~(PARAM_PATTERN)+;
 
 expr :
-     LEFT_PAREN expr RIGHT_PAREN
+     paren_expr
    | scalar
-   | IDENTIFIER
-   | IDENTIFIER PERIOD IDENTIFIER
-   | IDENTIFIER DOUBLE_COLON IDENTIFIER
-   | STAR
-   | LEFT_PAREN data_type RIGHT_PAREN expr
+   | field_reference
    | expr mul_div_mod_op expr
    | expr plus_minus_op expr
    | expr rel_op expr
+   | expr IS (NOT)? NULL
    | expr AND expr
    | expr OR expr
    | NOT expr
-   | LEFT_PAREN data_type RIGHT_PAREN expr
    | func_call
    | expr QMARK expr COLON expr
    | case_when_expr
-   | expr IS (NOT)? NULL
    | expr IN LEFT_PAREN expr (COMMA expr)* RIGHT_PAREN
    | expr rel_op expr
-   | expr QMARK expr COLON expr
    | cast_type expr
    ;
+
+field_reference:  IDENTIFIER
+                 | IDENTIFIER PERIOD IDENTIFIER
+                 | IDENTIFIER DOUBLE_COLON IDENTIFIER
+                 | STAR;
+
+paren_expr: LEFT_PAREN expr RIGHT_PAREN;
 
 plus_minus_op: PLUS | MINUS;
 

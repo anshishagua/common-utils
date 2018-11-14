@@ -4,6 +4,7 @@ from antlr4 import CommonTokenStream
 from pig.generated.PigLexer import PigLexer
 from pig.generated.PigParser import PigParser
 from pig.parser.PigBaseVisitor import PigBaseVisitor
+from pig.parser.PigNewVisitor import PigNewVisitor
 
 
 def main():
@@ -26,16 +27,19 @@ fake_id_to_four_key = DISTINCT fake_id_to_four_key;
                                     (connection_type != 'APP'));    
     """
 
+    program = "(int) 1.0 + 1"
+
     inputStream = InputStream(program)
     lexer = PigLexer(inputStream)
     stream = CommonTokenStream(lexer)
     parser = PigParser(stream)
-    tree = parser.program()
+    tree = parser.expr()
 
-    visitor = PigBaseVisitor()
+    visitor = PigNewVisitor()
 
-    program = visitor.visitProgram(tree)
+    program = visitor.visitExpr(tree)
 
     print program
+
 
 main()

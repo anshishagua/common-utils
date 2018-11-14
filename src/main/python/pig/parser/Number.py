@@ -6,3 +6,6 @@ class Number(Node):
         self.value = value
         self.children = []
         self.type = "NUMBER"
+
+    def __str__(self):
+        return "NUMBER: %s" % str(self.value)

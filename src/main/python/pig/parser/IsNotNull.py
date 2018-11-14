@@ -6,3 +6,6 @@ class IsNotNull(Node):
         self.expression = expression
         self.children = [expression]
         self.type = "IS_NOT_NULL"
+
+    def __str__(self):
+        return "%s IS NOT NULL" % (self.expression)

@@ -6,3 +6,6 @@ class Field(Node):
         self.relation = relation
         self.fieldName = fieldName
         self.type = "FIELD"
+
+    def __str__(self):
+        return '"FIELD": {"relation": "%s", "fieldName": "%s"}' % (self.relation, self.fieldName)
