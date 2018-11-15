@@ -7,3 +7,6 @@ class Not(Node):
 
     def __str__(self):
         return "NOT %s" % (self.condition)
+
+    def toSpark(self):
+        return "not (%s & %s)" % (self.left.toSpark(), self.right.toSpark())

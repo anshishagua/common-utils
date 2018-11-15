@@ -154,8 +154,7 @@ order_col_list : order_col ( ',' order_col )*;
 order_col : col_range (ASC | DESC)?
           | col_ref ( ASC | DESC )?
 | LEFT_PAREN col_ref ( ASC | DESC )? RIGHT_PAREN;
-col_range : col_ref '..' col_ref?
-| '..' col_ref;
+col_range : col_ref op='..' col_ref? | op='..' col_ref;
 
 
 nested_filter : FILTER nested_op_input BY expr;
@@ -179,7 +178,7 @@ join_statement: IDENTIFIER ASSIGN join_clause SEMI_COLON?;
 
 join_clause: JOIN joinSubClause (USING join_type)? partition_clause? parallel_clause?;
 join_type: QUOTEDSTRING;
-joinSubClause: joinItem ( ( ( LEFT | RIGHT | FULL ) OUTER? COMMA joinItem ) | ( (COMMA joinItem)+ ) );
+joinSubClause: joinItem ( ( (LEFT | RIGHT | FULL ) OUTER? COMMA joinItem ) | ( (COMMA joinItem)+ ) );
 joinItem : rel join_groupby_clause;
 join_groupby_clause : BY ((LEFT_PAREN arg (COMMA arg)* RIGHT_PAREN) | arg);
 arg: IDENTIFIER | STAR;
@@ -291,7 +290,7 @@ LEFT: 'LEFT';
 RIGHT: 'RIGHT';
 FULL: 'FULL';
 OUTER: 'OUNTER';
-ONSCHEMA: 'ONSCHEMA';
+ONSCHEMA: 'ONSCHEMA' | 'onschema';
 LEFT_BRACE: '{';
 RIGHT_BRACE: '}';
 DEFINE: 'DEFINE';
@@ -350,6 +349,7 @@ QUOTEDSTRING :  '\'' (   ( ~ ( '\'' | '\\' | '\n' | '\r' ) )
 FLOATNUMBER: DOUBLENUMBER 'D';
 
 PERIOD: '.';
+
 BY: 'BY';
 FILTER: 'FILTER';
 DISTINCT: 'DISTINCT';

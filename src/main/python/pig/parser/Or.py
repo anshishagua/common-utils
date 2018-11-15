@@ -8,3 +8,6 @@ class Or(Node):
 
     def __str__(self):
         return "%s OR %s" % (self.left, self.right)
+
+    def toSpark(self):
+        return "((%s) | (%s))" % (self.left.toSpark(), self.right.toSpark())

@@ -9,4 +9,7 @@ class Distinct(Node):
         self.type = "DISTINCT"
 
     def __str__(self):
-        return "[src:%s, target:%s]" % (self.src, self.target)
+        return "DISTINCT[src:%s, target:%s]" % (self.src, self.target)
+
+    def toSpark(self):
+        return "%s = %s.distinct();" % (self.target, self.src.toSpark())

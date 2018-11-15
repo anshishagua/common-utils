@@ -1,4 +1,4 @@
-# Generated from /Users/lixiao/code/common-utils/src/main/resources/Pig.g4 by ANTLR 4.7
+# Generated from /Users/xiaoli/IdeaProjects/common-utils/src/main/resources/Pig.g4 by ANTLR 4.7
 # encoding: utf-8
 from __future__ import print_function
 from antlr4 import *
@@ -533,19 +533,18 @@ class PigParser ( Parser ):
                      u"'BAG'", u"'CASE'", u"'WHEN'", u"'THEN'", u"'ELSE'", 
                      u"'END'", u"'STDIN'", u"'STDOUNT'", u"'OTHERWISE'", 
                      u"'IF'", u"'PARTITION'", u"'UNION'", u"'ALL'", u"'LEFT'", 
-                     u"'RIGHT'", u"'FULL'", u"'OUNTER'", u"'ONSCHEMA'", 
-                     u"'{'", u"'}'", u"'DEFINE'", u"'SPLIT'", u"'JOIN'", 
-                     u"'PARALLEL'", u"'GROUP'", u"'CUBE'", u"'ROLLUP'", 
-                     u"<INVALID>", u"'EQ'", u"'GT'", u"'LT'", u"'GTE'", 
-                     u"'LTE'", u"'NEQ'", u"<INVALID>", u"<INVALID>", u"'|'", 
-                     u"'TRUE'", u"'FALSE'", u"'FLATTEN'", u"<INVALID>", 
-                     u"<INVALID>", u"'.'", u"'BY'", u"'FILTER'", u"'DISTINCT'", 
-                     u"'###'", u"'INTO'", u"'STORE'", u"'FOREACH'", u"'GENERATE'", 
-                     u"'='", u"'ASC'", u"'DESC'", u"'CROSS'", u"'LIMIT'", 
-                     u"'ORDER'", u"'ANY'", u"'INNER'", u"'+'", u"'-'", u"<INVALID>", 
-                     u"'/'", u"'%'", u"'?'", u"'AND'", u"'OR'", u"'NOT'", 
-                     u"<INVALID>", u"'=='", u"'!='", u"'<'", u"'<='", u"'>'", 
-                     u"'>='", u"'=>'" ]
+                     u"'RIGHT'", u"'FULL'", u"'OUNTER'", u"<INVALID>", u"'{'", 
+                     u"'}'", u"'DEFINE'", u"'SPLIT'", u"'JOIN'", u"'PARALLEL'", 
+                     u"'GROUP'", u"'CUBE'", u"'ROLLUP'", u"<INVALID>", u"'EQ'", 
+                     u"'GT'", u"'LT'", u"'GTE'", u"'LTE'", u"'NEQ'", u"<INVALID>", 
+                     u"<INVALID>", u"'|'", u"'TRUE'", u"'FALSE'", u"'FLATTEN'", 
+                     u"<INVALID>", u"<INVALID>", u"'.'", u"'BY'", u"'FILTER'", 
+                     u"'DISTINCT'", u"'###'", u"'INTO'", u"'STORE'", u"'FOREACH'", 
+                     u"'GENERATE'", u"'='", u"'ASC'", u"'DESC'", u"'CROSS'", 
+                     u"'LIMIT'", u"'ORDER'", u"'ANY'", u"'INNER'", u"'+'", 
+                     u"'-'", u"<INVALID>", u"'/'", u"'%'", u"'?'", u"'AND'", 
+                     u"'OR'", u"'NOT'", u"<INVALID>", u"'=='", u"'!='", 
+                     u"'<'", u"'<='", u"'>'", u"'>='", u"'=>'" ]
 
     symbolicNames = [ u"<INVALID>", u"<INVALID>", u"<INVALID>", u"<INVALID>", 
                       u"PARENT_PATH", u"REGISTER", u"LOAD", u"INTEGER", 
@@ -5006,6 +5005,7 @@ class PigParser ( Parser ):
         def __init__(self, parser, parent=None, invokingState=-1):
             super(PigParser.Col_rangeContext, self).__init__(parent, invokingState)
             self.parser = parser
+            self.op = None # Token
 
         def col_ref(self, i=None):
             if i is None:
@@ -5047,7 +5047,7 @@ class PigParser ( Parser ):
                 self.state = 620
                 self.col_ref()
                 self.state = 621
-                self.match(PigParser.T__2)
+                localctx.op = self.match(PigParser.T__2)
                 self.state = 623
                 self._errHandler.sync(self)
                 la_ = self._interp.adaptivePredict(self._input,59,self._ctx)
@@ -5060,7 +5060,7 @@ class PigParser ( Parser ):
             elif token in [PigParser.T__2]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 625
-                self.match(PigParser.T__2)
+                localctx.op = self.match(PigParser.T__2)
                 self.state = 626
                 self.col_ref()
                 pass

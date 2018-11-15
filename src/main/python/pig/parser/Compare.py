@@ -9,3 +9,6 @@ class Compare(Node):
 
     def __str__(self):
         return "%s %s %s" % (self.left, self.compareType, self.right)
+
+    def toSpark(self):
+        return "%s %s %s" % (self.left.toSpark(), self.compareType, self.right.toSpark())

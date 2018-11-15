@@ -5,6 +5,7 @@ from pig.generated.PigLexer import PigLexer
 from pig.generated.PigParser import PigParser
 from pig.parser.PigBaseVisitor import PigBaseVisitor
 from pig.parser.PigNewVisitor import PigNewVisitor
+from pig.parser.Number import Number
 
 
 def main():
@@ -27,19 +28,43 @@ fake_id_to_four_key = DISTINCT fake_id_to_four_key;
                                     (connection_type != 'APP'));    
     """
 
-    program = "(int) 1.0 + 1"
+    program = """
+            app_data_usage_bad_record = LOAD ###MDM_APP_DATA_USAGE_BAD_RECORD_F:$load_days###;
+
+    app_total_downloads_prev = FOREACH app_total_downloads_prev GENERATE app_id, country, device_type, total_downloads AS downloads;
+curr_total_accum_downloads = UNION android_app_accum_downloads, ios_app_accum_downloads;
+STORE total_downloads INTO ###APP_TOTAL_DOWNLOADS_I|range_type=MONTH###;
+    capi_log = FILTER capi_log BY field == 1;    
+    """
+
+    program = """
+                app_data_usage_bad_record = LOAD ###MDM_APP_DATA_USAGE_BAD_RECORD_F:$load_days###;
+
+  app_days_running_r = FILTER app_days_running_r BY ToDate(REPLACE(utc_date_key, '-', ''), 'YYYYMMdd') == ToDate('$date', 'YYYY-MM-dd')
+    AND ToDate(agent_received_at, 'YYYY-MM-dd HH:mm:ss') >= SubtractDuration(ToDate(REPLACE(utc_date_key, '-', ''), 'YYYYMMdd'), 'P1D')
+    AND ToDate(agent_received_at, 'YYYY-MM-dd HH:mm:ss') < AddDuration(ToDate(REPLACE(utc_date_key, '-', ''), 'YYYYMMdd'), 'P4D')
+    AND days_running > 0 AND fetch_count > 0;
+    
+    reported_app_days_running_an_cn = DISTINCT reported_app_days_running_an_cn;
+    guid_status_union = UNION onschema app_data_usage_an_cn, app_days_running_an_cn, app_screen_time_an_cn;
+    dim_known_plan_j = JOIN dim_known_plan BY interface_key, dim_interface_plan BY interface_key USING 'replicated';
+    STORE total_downloads INTO ###RINCON_APP_TOTAL_DOWNLOADS_FEATURE_I|range_type=MONTH###;
+
+ipad_downloads = FOREACH  iPad_accum_downloads GENERATE  app_id, country, 'iPad' AS device_type:chararray, ipad_downloads AS downloads:long;
+
+    """
 
     inputStream = InputStream(program)
     lexer = PigLexer(inputStream)
     stream = CommonTokenStream(lexer)
     parser = PigParser(stream)
-    tree = parser.expr()
+    tree = parser.program()
 
     visitor = PigNewVisitor()
 
-    program = visitor.visitExpr(tree)
+    program = visitor.visitProgram(tree)
 
-    print program
+    print program.toSpark()
 
 
 main()
