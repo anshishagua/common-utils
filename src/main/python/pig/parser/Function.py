@@ -1,6 +1,5 @@
 from Node import Node
 from Number import Number
-import pyspark.sql.functions
 
 class Function(Node):
     def __init__(self, name, args):
@@ -25,8 +24,6 @@ class Function(Node):
 
             sign = 1 if name == 'addduration' else -1
             days = int(duration[1:-1]) * sign
-
-            print days
 
             self.args[1] = Number(days)
             sparkFuncName = "date_add"

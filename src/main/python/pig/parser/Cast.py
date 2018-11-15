@@ -15,4 +15,9 @@ class Cast(Node):
     def toSpark(self):
         sparkType = PIG_SPARK_TYPE_MAPPING[self.toType]
 
-        return '%s.cast("%s")' % (self.expression.toSpark(), sparkType)
+        expression = self.expression.toSpark()
+
+        if self.expression.type == 'STRING' or self.expression.type == 'NUMBER':
+            expression = "F.lit(%s)" % str(expression)
+
+        return '%s.cast("%s")' % (expression, sparkType)

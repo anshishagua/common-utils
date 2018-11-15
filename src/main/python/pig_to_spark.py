@@ -1,3 +1,10 @@
+from antlr4 import InputStream
+from antlr4 import CommonTokenStream
+
+from pig.generated.PigLexer import PigLexer
+from pig.generated.PigParser import PigParser
+from pig.parser.PigNewVisitor import PigNewVisitor
+
 
 def remove_comments(string):
     length = len(string)
@@ -50,6 +57,29 @@ def remove_comments(string):
 
     return result
 
+def to_spark(pigFilePath):
+    program = ""
+
+    f = open(pigFilePath)
+
+    for line in f:
+        program += (line)
+
+    program = remove_comments(program)
+
+    inputStream = InputStream(program)
+    lexer = PigLexer(inputStream)
+    stream = CommonTokenStream(lexer)
+    parser = PigParser(stream)
+    tree = parser.program()
+
+    visitor = PigNewVisitor()
+
+    program = visitor.visitProgram(tree)
+
+    print program.toSpark()
+
+
 
 def main():
     string = """
@@ -64,17 +94,9 @@ def main():
         --adfwqerqwrqwerqwerqewr
         c = 3;
     """
+    path = "/Users/lixiao/Desktop/mdm_hm_edw_app_data_usage.pig"
 
-    f = open("/Users/lixiao/Desktop/mdm_hm_edw_app_data_usage.pig")
-
-    string = ""
-
-    for line in f:
-        string += (line)
-
-    result = remove_comments(string)
-
-    print(result)
+    to_spark(path)
 
 
 main()

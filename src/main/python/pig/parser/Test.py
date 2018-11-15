@@ -50,9 +50,13 @@ STORE total_downloads INTO ###APP_TOTAL_DOWNLOADS_I|range_type=MONTH###;
     dim_known_plan_j = JOIN dim_known_plan BY interface_key, dim_interface_plan BY interface_key USING 'replicated';
     STORE total_downloads INTO ###RINCON_APP_TOTAL_DOWNLOADS_FEATURE_I|range_type=MONTH###;
 
-ipad_downloads = FOREACH  iPad_accum_downloads GENERATE  app_id, country, 'iPad' AS device_type:chararray, ipad_downloads AS downloads:long;
-
+ipad_downloads = FOREACH  iPad_accum_downloads GENERATE  app_id, 
+country, 'iPad' AS device_type:chararray, 
+ipad_downloads AS downloads:long,
+CASE WHEN a == 1 THEN 1 ELSE 3 END AS aaa;
     """
+
+    #program = "        c = FILTER a BY (CASE WHEN a == 1 THEN 1 ELSE 3 END) == 3;"
 
     inputStream = InputStream(program)
     lexer = PigLexer(inputStream)

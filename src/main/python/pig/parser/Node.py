@@ -10,5 +10,5 @@ class Node(object):
     def __str__(self):
         return self.type
 
-    def toSpark(self):
+    def toSpark(self, raw=False):
         return "%s" % (self)

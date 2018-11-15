@@ -38,6 +38,8 @@ from FieldRange import FieldRange
 from Foreach import Foreach
 from Alias import Alias
 from Join import Join, JoinItem
+from Group import Group, GroupItem
+from ComplexRelation import ComplexRelation
 
 
 class PigNewVisitor(PigVisitor):
@@ -209,7 +211,11 @@ class PigNewVisitor(PigVisitor):
             alias = self.visit(ctx.generate_as_clause())
 
         if alias is not None:
-            return Alias(alias, arg)
+            if alias.type == "CAST":
+                cast = Cast(alias.toType, arg)
+                return Alias(cast, alias.expression)
+            else:
+                return Alias(arg, alias)
 
         return arg
 
@@ -515,11 +521,14 @@ class PigNewVisitor(PigVisitor):
 
         return Field("*")
 
-
+    """rel : IDENTIFIER |  previous_rel | nested_op_clause;"""
     # Visit a parse tree produced by PigParser#rel.
     def visitRel(self, ctx):
         if ctx.IDENTIFIER() is not None:
             return Relation(ctx.IDENTIFIER().getText())
+
+        if ctx.nested_op_clause() is not None:
+            return ComplexRelation(self.visit(ctx.nested_op_clause()))
 
         return self.visitChildren(ctx)
 
@@ -534,6 +543,9 @@ class PigNewVisitor(PigVisitor):
 
     # Visit a parse tree produced by PigParser#nested_op_clause.
     def visitNested_op_clause(self, ctx):
+        if ctx.op_clause() is not None:
+            return self.visit(ctx.op_clause())
+
 
 
         return self.visitChildren(ctx)
@@ -550,33 +562,56 @@ class PigNewVisitor(PigVisitor):
 
 
     # Visit a parse tree produced by PigParser#group_statement.
+    """group_statement: rel ASSIGN group_clause SEMI_COLON?;"""
     def visitGroup_statement(self, ctx):
-        return self.visitChildren(ctx)
+        target = self.visit(ctx.rel())
+        groupItems = self.visit(ctx.group_clause())
 
+        return Group(target, groupItems)
 
+    """group_clause: GROUP group_item_list ( USING QUOTEDSTRING )? parallel_clause?;"""
     # Visit a parse tree produced by PigParser#group_clause.
     def visitGroup_clause(self, ctx):
-        return self.visitChildren(ctx)
+        return self.visit(ctx.group_item_list())
 
 
     # Visit a parse tree produced by PigParser#group_item_list.
     def visitGroup_item_list(self, ctx):
-        return self.visitChildren(ctx)
+        groupItems = []
 
+        for context in ctx.group_item():
+            groupItems.append(self.visit(context))
 
+        return groupItems
+
+    """rel ( join_group_by_clause | ALL | ANY ) ( INNER | OUTER )?;"""
     # Visit a parse tree produced by PigParser#group_item.
     def visitGroup_item(self, ctx):
-        return self.visitChildren(ctx)
+        relation = self.visit(ctx.rel())
+        fields = []
 
+        if ctx.join_group_by_clause() is not None:
+            fields = self.visit(ctx.join_group_by_clause())
 
+        return GroupItem(relation, fields)
+
+    """join_group_by_clause : BY ((LEFT_PAREN arg_list RIGHT_PAREN) | real_arg );"""
     # Visit a parse tree produced by PigParser#join_group_by_clause.
     def visitJoin_group_by_clause(self, ctx):
-        return self.visitChildren(ctx)
+        if ctx.arg_list() is not None:
+            return self.visit(ctx.arg_list())
+        else:
+            return [self.visit(ctx.real_arg())]
 
-
+    """arg_list : real_arg (COMMA real_arg )* ;"""
     # Visit a parse tree produced by PigParser#arg_list.
     def visitArg_list(self, ctx):
-        return self.visitChildren(ctx)
+        args = []
+
+        for context in ctx.real_arg():
+            args.append(self.visit(context))
+
+        return args
 
 
     # Visit a parse tree produced by PigParser#real_arg.
