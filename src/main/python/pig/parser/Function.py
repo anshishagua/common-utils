@@ -8,6 +8,11 @@ class Function(Node):
         self.children = args
         self.type = "FUNC"
 
+    def isRelOp(self):
+        if self.name == "TOP":
+            return True
+        return False
+
     def __str__(self):
         return "FUNC, name:%s, args:(%s)" % (self.name, ", ".join(map(str, self.args)))
 
@@ -16,7 +21,7 @@ class Function(Node):
         sparkFuncName = name
 
         if name == 'todate':
-            sparkFuncName = 'to_date'
+            sparkFuncName = 'F.to_date'
         elif name == 'subtractduration' or name == 'addduration':
             duration = self.args[1].value
 
@@ -26,9 +31,16 @@ class Function(Node):
             days = int(duration[1:-1]) * sign
 
             self.args[1] = Number(days)
-            sparkFuncName = "date_add"
+            sparkFuncName = "F.date_add"
+        elif name == 'top':
+            sparkFuncName = "df_top_elements"
 
-        sparkFuncName = "F." + sparkFuncName
+            topN = self.args[0].toSpark()
+            fieldIndex = self.args[1].toSpark()
+            relation = self.args[2].toSpark(True)
+
+            return "%s(%s, %s, %s, %s)" % (sparkFuncName, relation, "111", fieldIndex, topN)
+
 
         args = []
 

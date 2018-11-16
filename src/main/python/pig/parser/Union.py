@@ -7,6 +7,9 @@ class Union(Node):
         self.children = relations
         self.type = "UNION"
 
+    def isRelOp(self):
+        return True
+
     def __str__(self):
         return "UNION:%s = [%s]" % (self.target, ", ".join(map(str, self.relations)))
 

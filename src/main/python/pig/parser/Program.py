@@ -20,7 +20,7 @@ class Program(Node):
         code = []
         imports = []
 
-        imports.append("from pyspark.sql.functions import col, when, lit, udf, to_date, broadcast")
+        imports.append("import pyspark.sql.functions as F")
         imports.append("from bdce.common.spark.spark_utils import load_data_to_spark_dataframe, store_spark_dataframe")
         imports.append("from bdce.common.spark.udfs import join_spark_df, join_spark_dfs")
 

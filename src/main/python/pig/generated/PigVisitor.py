@@ -1,4 +1,4 @@
-# Generated from /Users/lixiao/code/common-utils/src/main/resources/Pig.g4 by ANTLR 4.7
+# Generated from /Users/xiaoli/IdeaProjects/common-utils/src/main/resources/Pig.g4 by ANTLR 4.7
 from antlr4 import *
 
 # This class defines a complete generic visitor for a parse tree produced by PigParser.

@@ -40,6 +40,9 @@ from Alias import Alias
 from Join import Join, JoinItem
 from Group import Group, GroupItem
 from ComplexRelation import ComplexRelation
+from Assign import Assign
+from Flatten import Flatten
+from Generate import Genereate
 
 
 class PigNewVisitor(PigVisitor):
@@ -87,14 +90,19 @@ class PigNewVisitor(PigVisitor):
     def visitSplit_statement(self, ctx):
         return self.visitChildren(ctx)
 
-
+    """split_clause: SPLIT rel INTO split_branch (COMMA split_branch)* split_otherwise?;"""
     # Visit a parse tree produced by PigParser#split_clause.
     def visitSplit_clause(self, ctx):
+        relation = self.visit(ctx.rel())
+
         return self.visitChildren(ctx)
 
-
+    """split_branch : IDENTIFIER IF ((LEFT_PAREN expr RIGHT_PAREN) | expr);"""
     # Visit a parse tree produced by PigParser#split_branch.
     def visitSplit_branch(self, ctx):
+        relation = Relation(self.IDENTIFIER().getText())
+        exp = self.visit(ctx.expr())
+
         return self.visitChildren(ctx)
 
 
@@ -166,9 +174,9 @@ class PigNewVisitor(PigVisitor):
     def visitForeach_statement(self, ctx):
         target = Relation(ctx.IDENTIFIER().getText())
 
-        relation, items = self.visit(ctx.foreach_clause())
+        relation, nested_commands, items = self.visit(ctx.foreach_clause())
 
-        return Foreach(target, relation, items)
+        return Foreach(target, relation, nested_commands, items)
 
     """foreach_clause: FOREACH rel (foreach_plan_complex | ( foreach_generate_simple parallel_clause?));"""
     # Visit a parse tree produced by PigParser#foreach_clause.
@@ -176,12 +184,13 @@ class PigNewVisitor(PigVisitor):
         src = self.visit(ctx.rel())
 
         items = None
+        nested_commands = None
         if ctx.foreach_generate_simple() is not None:
             items = self.visit(ctx.foreach_generate_simple())
+        else:
+            nested_commands, items = self.visit(ctx.foreach_plan_complex())
 
-        return (src, items)
-
-        #return self.visitChildren(ctx)
+        return src, nested_commands, items
 
     """foreach_generate_simple : GENERATE flatten_generated_item (COMMA flatten_generated_item )*;"""
     # Visit a parse tree produced by PigParser#foreach_generate_simple.
@@ -195,45 +204,61 @@ class PigNewVisitor(PigVisitor):
 
 
     # Visit a parse tree produced by PigParser#foreach_plan_complex.
+    """foreach_plan_complex : LEFT_BRACE nested_blk RIGHT_BRACE;"""
     def visitForeach_plan_complex(self, ctx):
-        return self.visitChildren(ctx)
+        return self.visit(ctx.nested_blk())
 
 
-    """flatten_generated_item: flatten_clause generate_as_clause? | real_arg generate_as_clause?;"""
+    """flatten_generated_item: flatten_clause generate_as_clause? 
+            | real_arg generate_as_clause?;
+    """
     # Visit a parse tree produced by PigParser#flatten_generated_item.
     def visitFlatten_generated_item(self, ctx):
         arg = None
+
         if ctx.real_arg() is not None:
             arg = self.visit(ctx.real_arg())
 
-        alias = None
-        if ctx.generate_as_clause() is not None:
-            alias = self.visit(ctx.generate_as_clause())
+            alias = None
+            if ctx.generate_as_clause() is not None:
+                alias = self.visit(ctx.generate_as_clause())
 
-        if alias is not None:
-            if alias.type == "CAST":
-                cast = Cast(alias.toType, arg)
-                return Alias(cast, alias.expression)
-            else:
-                return Alias(arg, alias)
+            if alias is not None:
+                if alias.type == "CAST":
+                    cast = Cast(alias.toType, arg)
+                    return Alias(cast, alias.expression)
+                else:
+                    return Alias(arg, alias)
 
-        return arg
+            return arg
+        else:
+            arg = self.visit(ctx.flatten_clause())
+
+            fields = self.visit(ctx.generate_as_clause())
+
+            return Genereate(arg, fields)
 
         #return self.visitChildren(ctx)
 
-
+    """generate_as_clause : AS ( (LEFT_PAREN field_def_list RIGHT_PAREN) 
+    | explicit_field_def );
+    """
     # Visit a parse tree produced by PigParser#generate_as_clause.
     def visitGenerate_as_clause(self, ctx):
         if ctx.explicit_field_def() is not None:
             return self.visit(ctx.explicit_field_def())
+        else:
+            return self.visit(ctx.field_def_list())
 
-        return self.visitChildren(ctx)
-
-
+    """field_def_list : field_def (COMMA field_def )*;"""
     # Visit a parse tree produced by PigParser#field_def_list.
     def visitField_def_list(self, ctx):
-        return self.visitChildren(ctx)
+        fields = []
 
+        for context in ctx.field_def():
+            fields.append(self.visit(context))
+
+        return fields
 
     # Visit a parse tree produced by PigParser#field_def.
     def visitField_def(self, ctx):
@@ -308,22 +333,56 @@ class PigNewVisitor(PigVisitor):
     def visitImplicit_map_type(self, ctx):
         return self.visitChildren(ctx)
 
-
+    """flatten_clause: FLATTEN LEFT_PAREN expr RIGHT_PAREN;"""
     # Visit a parse tree produced by PigParser#flatten_clause.
     def visitFlatten_clause(self, ctx):
-        return self.visitChildren(ctx)
+        expr = self.visit(ctx.expr())
 
+        return Flatten(expr)
 
+    """nested_blk : (nested_command SEMI_COLON)* GENERATE flatten_generated_item (COMMA flatten_generated_item )* SEMI_COLON;"""
     # Visit a parse tree produced by PigParser#nested_blk.
     def visitNested_blk(self, ctx):
-        return self.visitChildren(ctx)
+        nested_commands = []
+
+        for context in ctx.nested_command():
+            nested_commands.append(self.visit(context))
+
+        items = []
+
+        for context in ctx.flatten_generated_item():
+            items.append(self.visit(context))
+
+        return nested_commands, items
 
 
+    """nested_command : IDENTIFIER ASSIGN expr | IDENTIFIER ASSIGN nested_op;"""
     # Visit a parse tree produced by PigParser#nested_command.
     def visitNested_command(self, ctx):
-        return self.visitChildren(ctx)
+        target = ctx.IDENTIFIER().getText()
 
+        expression = None
 
+        if ctx.expr() is not None:
+            expression = self.visit(ctx.expr())
+        else:
+            expression = self.visit(ctx.nested_op())
+
+        if expression.isRelOp():
+            target = Relation(target)
+        else:
+            target = Field(target)
+
+        return Assign(target, expression)
+
+    """
+nested_op : nested_filter
+          | nested_sort
+          | nested_distinct
+          | nested_limit
+          | nested_cross
+          | nested_foreach;
+    """
     # Visit a parse tree produced by PigParser#nested_op.
     def visitNested_op(self, ctx):
         return self.visitChildren(ctx)
@@ -387,12 +446,20 @@ class PigNewVisitor(PigVisitor):
 
         return FieldRange(start, end)
 
-
+    """
+        nested_filter : FILTER nested_op_input BY expr;
+    """
     # Visit a parse tree produced by PigParser#nested_filter.
     def visitNested_filter(self, ctx):
+        relation = self.visit(ctx.nested_op_input())
+
+        condition = self.visit(ctx.expr())
+
         return self.visitChildren(ctx)
 
-
+    """
+        nested_op_input : col_ref | nested_proj;
+    """
     # Visit a parse tree produced by PigParser#nested_op_input.
     def visitNested_op_input(self, ctx):
         return self.visitChildren(ctx)
@@ -405,7 +472,7 @@ class PigNewVisitor(PigVisitor):
         else:
             return ctx.DOLLAR_VAR().getText()
 
-
+    """nested_proj: col_ref '.' col_ref_list;"""
     # Visit a parse tree produced by PigParser#nested_proj.
     def visitNested_proj(self, ctx):
         return self.visitChildren(ctx)

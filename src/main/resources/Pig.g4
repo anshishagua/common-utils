@@ -140,7 +140,7 @@ nested_op : nested_filter
           | nested_distinct
           | nested_limit
           | nested_cross
-| nested_foreach;
+          | nested_foreach;
 
 
 nested_foreach : FOREACH nested_op_input GENERATE flatten_generated_item (COMMA flatten_generated_item )*;

@@ -56,7 +56,31 @@ ipad_downloads AS downloads:long,
 CASE WHEN a == 1 THEN 1 ELSE 3 END AS aaa;
     """
 
-    #program = "        c = FILTER a BY (CASE WHEN a == 1 THEN 1 ELSE 3 END) == 3;"
+    program = """
+    
+   capi_log = FOREACH capi_log GENERATE  guid,
+                                      iso_country_code,
+                                      latitude,
+                                      longitude,
+                                      sdk_publisher_id,
+                                      sdk_bundle_id,
+                                      connection_type,
+                                      infid,
+                                      remote_server_port,
+                                      (remote_server_host IS NULL ? '' : remote_server_host) AS remote_server_host,
+                                      http_user_agent,
+                                      http_refer,
+                                      http_uri,
+                                      input_bytes,
+                                      output_bytes,
+                                      transformed_at,
+                                      connection_start_at,
+                                      connection_end_at,
+                                      app_identifier,
+                                      sdk_version,
+                                      os_version,
+                                      app_version;
+    """
 
     inputStream = InputStream(program)
     lexer = PigLexer(inputStream)

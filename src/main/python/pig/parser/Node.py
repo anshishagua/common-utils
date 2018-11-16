@@ -12,3 +12,6 @@ class Node(object):
 
     def toSpark(self, raw=False):
         return "%s" % (self)
+
+    def isRelOp(self):
+        return False

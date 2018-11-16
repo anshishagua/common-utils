@@ -9,3 +9,6 @@ class IsNull(Node):
 
     def __str__(self):
         return "%s IS NULL" % (self.expression)
+
+    def toSpark(self, raw=False):
+        return "%s.isNull()" % (self.expression.toSpark())
