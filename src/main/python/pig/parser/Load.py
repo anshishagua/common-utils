@@ -34,4 +34,4 @@ class Load(Node):
         else:
             schema = "'" + schema + "'"
 
-        return "%s = load_data_to_spark_dataframe(sc, %s, params);" % (self.relation, schema)
+        return "%s = load_data_to_spark_dataframe(sc, %s, params)" % (self.relation, schema)

@@ -1,5 +1,5 @@
 from Node import Node
-
+from GlobalContext import GlobalContext
 
 class GroupItem(Node):
     def __init__(self, relation, groupByFields=None):
@@ -14,19 +14,22 @@ class GroupItem(Node):
         for field in self.groupByFields:
             fields.append(field.toSpark())
 
-        return "%s = %s.groupBy([%s]);" % (self.relation.toSpark(), self.relation.toSpark(), ", ".join(fields))
+        return "%s = %s.groupBy([%s])" % (self.relation.toSpark(), self.relation.toSpark(), ", ".join(fields))
 
 
 class Group(Node):
-    def __init__(self, target, groupItems):
+    def __init__(self, target, src, fields):
         self.target = target
-        self.groupItems = groupItems
+        self.src = src
+        self.fields = fields
         self.type = "GROUP"
 
     def toSpark(self, raw=False):
         items = []
 
-        for item in self.groupItems:
+        for item in self.fields:
             items.append(item.toSpark())
 
-        return "%s = %s.groupBy(%s);" % (self.src, ", ".join(items))
+        GlobalContext.add(self.src, self)
+
+        return "%s = %s.groupBy(%s)" % (self.src, ", ".join(items))

@@ -19,4 +19,4 @@ class Union(Node):
         for relation in self.relations:
             relations.append(relation.toSpark())
 
-        return "%s = union_spark_dfs([%s]);" % (self.target.toSpark(), ", ".join(relations))
+        return "%s = union_spark_dfs([%s])" % (self.target.toSpark(), ", ".join(relations))

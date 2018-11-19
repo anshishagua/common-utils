@@ -1,3 +1,4 @@
+
 class Node(object):
     def __init__(self, children):
         self.children = children
@@ -14,4 +15,19 @@ class Node(object):
         return "%s" % (self)
 
     def isRelOp(self):
+        return False
+
+    def contains_aggregation(self):
+        if self.type == "AGGR":
+            return True
+
+        if len(self.children) == 0:
+            return False
+
+        for child in self.children:
+            result = child.contains_aggregation()
+
+            if result:
+                return True
+
         return False

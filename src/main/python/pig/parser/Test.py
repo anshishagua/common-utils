@@ -8,6 +8,17 @@ from pig.parser.PigNewVisitor import PigNewVisitor
 from pig.parser.Number import Number
 
 
+def load_program(path):
+    f = open(path)
+
+    result = ""
+
+    for line in f:
+        result += line
+        result += "\n"
+
+    return result
+
 def main():
     program = """
         SET pig.exec.reducers.max 4000; 
@@ -57,30 +68,78 @@ CASE WHEN a == 1 THEN 1 ELSE 3 END AS aaa;
     """
 
     program = """
+       tod_matrix_final = FOREACH tod_matrix_c GENERATE tod_matrix::date AS date,
+    (countries::country_name IS NULL ? tod_matrix::country_code : countries::country_name) AS country_name:chararray,
+    tod_matrix::country_code AS country_code,
+    tod_matrix::operator_name AS operator_name,
+    tod_matrix::platform AS platform,
+    tod_matrix::device_type AS device_type,
+    NULL AS max_network_capability,
+    'ALL' AS plan_type,
+    'ALL' AS plan_duration,
+    'ALL' AS plan_size,
+    NULL AS exceed_plan_limit,
+    NULL AS percent_plan_utilized,
+    NULL AS mobile_data_consumption,
+    tod_matrix::day_type AS day_type,
+    tod_matrix::local_hour AS local_hour,
+    NULL AS penetration,
+    NULL AS total_mb_per_user,
+    NULL AS mobile_mb_per_user,
+    NULL AS wifi_mb_per_user,
+    NULL AS wifi_user_ratio,
+    NULL AS wifi_mb_ratio,
+    NULL AS lte_user_ratio,
+    NULL AS lte_mb_ratio,
+    NULL AS roaming_penetration,
+    NULL AS roaming_days_per_user,
+    NULL AS roaming_mb_per_day,
+    NULL AS mobile_roaming_ratio,
+    NULL AS wifi_roaming_ratio,
+    tod_matrix::hourly_user_ratio AS hourly_user_ratio,
+    tod_matrix::hourly_mb_ratio AS hourly_mb_ratio,
+    tod_matrix::hourly_mobile_mb_ratio AS hourly_mobile_mb_ratio,
+    tod_matrix::hourly_wifi_mb_ratio AS hourly_wifi_mb_ratio,
+    tod_matrix::transformed_contributing_users AS transformed_contributing_users,
+    tod_matrix::transformed_panel_count AS transformed_panel_count,
+    NULL AS transformed_roaming_users,
+    NULL AS transformed_domestic_mobile_users,
+    NULL AS transformed_domestic_wifi_users,
+    NULL AS transformed_domestic_users,
+    NULL AS transformed_lte_users,
+    tod_matrix::transformed_domestic_mobile_bytes AS transformed_domestic_mobile_bytes,
+    tod_matrix::transformed_domestic_wifi_bytes AS transformed_domestic_wifi_bytes,
+    NULL AS transformed_domestic_lte_bytes,
+    NULL AS transformed_roaming_mobile_bytes,
+    NULL AS transformed_roaming_wifi_bytes,
+    NULL AS transformed_roaming_days,
+    NULL AS wifi_utilisation;
+
     
-   capi_log = FOREACH capi_log GENERATE  guid,
-                                      iso_country_code,
-                                      latitude,
-                                      longitude,
-                                      sdk_publisher_id,
-                                      sdk_bundle_id,
-                                      connection_type,
-                                      infid,
-                                      remote_server_port,
-                                      (remote_server_host IS NULL ? '' : remote_server_host) AS remote_server_host,
-                                      http_user_agent,
-                                      http_refer,
-                                      http_uri,
-                                      input_bytes,
-                                      output_bytes,
-                                      transformed_at,
-                                      connection_start_at,
-                                      connection_end_at,
-                                      app_identifier,
-                                      sdk_version,
-                                      os_version,
-                                      app_version;
+    fact_app_install = FOREACH fact_app_install GENERATE
+                     utc_date_key,
+                     utc_time_key,
+                     local_date_key,
+                     local_time_key,
+                     package,
+                     guid_key,
+                     product_key,
+                     sim_operator_key,
+                     device_key,
+                     plan_key,
+                     appeventid,
+                     os_version,
+                     subscriber_key,
+                     transformed_at,
+                     udf_fact.bad_record_key(is_bad_product, is_bad_os_version) AS bad_record_key,
+                     agent_received_at,
+                     app_install_source,
+                     app_version
+                     ;
+    
     """
+
+
 
     inputStream = InputStream(program)
     lexer = PigLexer(inputStream)

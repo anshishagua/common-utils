@@ -1,5 +1,5 @@
 from Node import Node
-
+from Register import Register
 
 class Program(Node):
     def __init__(self, statements):
@@ -33,10 +33,17 @@ class Program(Node):
         body = []
 
         for statement in self.children:
+            if isinstance(statement, Register):
+                continue
+
             body.append(statement.toSpark())
 
-        for line in body:
-            code.append("\t" + line)
+        for statement in body:
+            if isinstance(statement, list):
+                for line in statement:
+                    code.append("\t" + line)
+            else:
+                code.append("\t" + statement)
 
         return "\n".join(code)
 

@@ -5,6 +5,7 @@ class Field(Node):
     def __init__(self, fieldName, relation=None):
         self.relation = relation
         self.fieldName = fieldName
+        self.children = []
         self.type = "FIELD"
 
     def __str__(self):
@@ -15,4 +16,8 @@ class Field(Node):
             if raw:
                 return self.fieldName
             else:
-                return "F.col('%s')" %(self.fieldName)
+                return "F.col('%s')" % (self.fieldName)
+        else:
+            return "%s.%s" % (self.relation, self.fieldName)
+
+ALL_FIELD = Field("*")

@@ -14,4 +14,4 @@ class Store(Node):
         return "[type:%s, relation:%s, schema:%s]" % (self.type, self.relation, self.schema)
 
     def toSpark(self):
-        return "store_spark_dataframe(sc, %s, '%s');" % (self.relation, self.schema)
+        return "store_spark_dataframe(sc, %s, '%s')" % (self.relation, self.schema)

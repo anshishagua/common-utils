@@ -67,6 +67,8 @@ def to_spark(pigFilePath):
 
     program = remove_comments(program)
 
+    print program
+
     inputStream = InputStream(program)
     lexer = PigLexer(inputStream)
     stream = CommonTokenStream(lexer)
@@ -94,7 +96,7 @@ def main():
         --adfwqerqwrqwerqwerqewr
         c = 3;
     """
-    path = "/Users/lixiao/Desktop/mdm_hm_edw_app_data_usage.pig"
+    path = "/Users/xiaoli/IdeaProjects/aardvark-analyze/statistics/usage/python/operator_report/mdm_operator_matrix_by_tod.pig"
 
     to_spark(path)
 

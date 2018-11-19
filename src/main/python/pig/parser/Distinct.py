@@ -12,4 +12,4 @@ class Distinct(Node):
         return "DISTINCT[src:%s, target:%s]" % (self.src, self.target)
 
     def toSpark(self):
-        return "%s = %s.distinct();" % (self.target, self.src.toSpark())
+        return "%s = %s.distinct()" % (self.target, self.src.toSpark())

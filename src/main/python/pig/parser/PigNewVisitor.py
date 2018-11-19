@@ -43,7 +43,8 @@ from ComplexRelation import ComplexRelation
 from Assign import Assign
 from Flatten import Flatten
 from Generate import Genereate
-
+from Split import Split
+from Aggregation import Aggregation
 
 class PigNewVisitor(PigVisitor):
     # Visit a parse tree produced by PigParser#program.
@@ -67,18 +68,37 @@ class PigNewVisitor(PigVisitor):
 
 
     # Visit a parse tree produced by PigParser#cube_statement.
+    """cube_statement : IDENTIFIER ASSIGN cube_clause SEMI_COLON?;"""
     def visitCube_statement(self, ctx):
+        target = Relation(ctx.IDENTIFIER().getText())
+
         return self.visitChildren(ctx)
 
 
     # Visit a parse tree produced by PigParser#cube_clause.
+    """cube_clause : CUBE rel BY cube_rollup_list (COMMA cube_rollup_list )*;"""
     def visitCube_clause(self, ctx):
+        src = self.visit(ctx.rel())
+
+        rollup_list = []
+
+        for context in ctx.cube_rollup_list():
+            rollup_list.append(self.visit(context))
+
+
+
         return self.visitChildren(ctx)
 
 
     # Visit a parse tree produced by PigParser#cube_rollup_list.
+    """cube_rollup_list : ( CUBE | ROLLUP ) LEFT_PAREN real_arg (COMMA real_arg )* RIGHT_PAREN;"""
     def visitCube_rollup_list(self, ctx):
-        return self.visitChildren(ctx)
+        rollup_list = []
+
+        for context in ctx.real_arg():
+            rollup_list.append(self.visit(context))
+
+        return rollup_list
 
 
     # Visit a parse tree produced by PigParser#define_statement.
@@ -88,37 +108,56 @@ class PigNewVisitor(PigVisitor):
 
     # Visit a parse tree produced by PigParser#split_statement.
     def visitSplit_statement(self, ctx):
-        return self.visitChildren(ctx)
+        return self.visit(ctx.split_clause())
 
     """split_clause: SPLIT rel INTO split_branch (COMMA split_branch)* split_otherwise?;"""
     # Visit a parse tree produced by PigParser#split_clause.
     def visitSplit_clause(self, ctx):
-        relation = self.visit(ctx.rel())
+        src = self.visit(ctx.rel())
 
-        return self.visitChildren(ctx)
+        targets = []
+        conditions = []
+
+        for context in ctx.split_branch():
+            target, condition = self.visit(context)
+
+            conditions.append(condition)
+            targets.append(target)
+
+        if ctx.split_otherwise() is not None:
+            otherwise = self.visit(ctx.split_otherwise())
+            targets.append(otherwise)
+
+        return Split(src, conditions, targets)
 
     """split_branch : IDENTIFIER IF ((LEFT_PAREN expr RIGHT_PAREN) | expr);"""
     # Visit a parse tree produced by PigParser#split_branch.
     def visitSplit_branch(self, ctx):
-        relation = Relation(self.IDENTIFIER().getText())
-        exp = self.visit(ctx.expr())
+        relation = Relation(ctx.IDENTIFIER().getText())
+        condition = self.visit(ctx.expr())
 
-        return self.visitChildren(ctx)
+        return relation, condition
 
 
     # Visit a parse tree produced by PigParser#split_otherwise.
     def visitSplit_otherwise(self, ctx):
-        return self.visitChildren(ctx)
+        return Relation(ctx.IDENTIFIER())
 
 
     # Visit a parse tree produced by PigParser#register_statement.
     def visitRegister_statement(self, ctx):
-        return self.visitChildren(ctx)
+        return self.visit(ctx.register_clause())
 
-
+    """register_clause: REGISTER register_file (USING class_name)? (AS IDENTIFIER)?;"""
     # Visit a parse tree produced by PigParser#register_clause.
     def visitRegister_clause(self, ctx):
-        return self.visitChildren(ctx)
+        register_file = ctx.register_file().getText()
+        alias = None
+
+        if ctx.IDENTIFIER() is not None:
+            alias = alias
+
+        return Register(register_file, alias)
 
 
     # Visit a parse tree produced by PigParser#register_file.
@@ -228,15 +267,17 @@ class PigNewVisitor(PigVisitor):
                     cast = Cast(alias.toType, arg)
                     return Alias(cast, alias.expression)
                 else:
-                    return Alias(arg, alias)
+                    return Alias(alias, arg)
 
             return arg
         else:
             arg = self.visit(ctx.flatten_clause())
 
-            fields = self.visit(ctx.generate_as_clause())
+            fields = None
+            if ctx.generate_as_clause() is not None:
+                fields = self.visit(ctx.generate_as_clause())
 
-            return Genereate(arg, fields)
+            return Flatten(arg, fields)
 
         #return self.visitChildren(ctx)
 
@@ -634,7 +675,10 @@ nested_op : nested_filter
         target = self.visit(ctx.rel())
         groupItems = self.visit(ctx.group_clause())
 
-        return Group(target, groupItems)
+        src = groupItems[0].relation
+        fields = groupItems[1].groupByFields
+
+        return Group(target, src, fields)
 
     """group_clause: GROUP group_item_list ( USING QUOTEDSTRING )? parallel_clause?;"""
     # Visit a parse tree produced by PigParser#group_clause.
@@ -974,6 +1018,9 @@ nested_op : nested_filter
 
         for context in ctx.expr():
             args.append(self.visit(context))
+
+        if name in Aggregation.TYPES:
+            return Aggregation(name, args[0])
 
         return Function(name, args)
 

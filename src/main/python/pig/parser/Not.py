@@ -9,4 +9,4 @@ class Not(Node):
         return "NOT %s" % (self.condition)
 
     def toSpark(self):
-        return "not (%s & %s)" % (self.left.toSpark(), self.right.toSpark())
+        return "not (%s)" % (self.condition.toSpark())

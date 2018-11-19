@@ -12,4 +12,4 @@ class Genereate(Node):
         for field in self.fields:
             items.append(field.toSpark())
 
-        return "%s = %s;" % (self.src.toSpark(), ", ".join(items))
+        return "%s = %s" % (self.src.toSpark(), ", ".join(items))
