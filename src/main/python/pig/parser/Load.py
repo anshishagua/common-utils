@@ -1,4 +1,5 @@
 from Node import Node
+from GlobalContext import GlobalContext
 import re
 
 
@@ -18,6 +19,13 @@ class Load(Node):
         return "[type:%s, relation:%s, schema:%s]" % (self.type, self.relation, self.schema)
 
     def toSpark(self):
+        schema_root_path = GlobalContext.get("schema_root")
+
+        schema_name = self.schema
+
+        if "|" in schema_name:
+            schema_name = schema_name.split("|")[0]
+
         schema = self.schema
 
         params = re.findall("\$[a-zA-Z0-9_]+", schema)

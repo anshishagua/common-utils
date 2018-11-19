@@ -6,6 +6,8 @@ class ConditionCase(Node):
         self.conditions = conditions
         self.values = values
 
+        self.children = conditions + values
+
         if len(self.values) == len(self.conditions):
             self.values.append(Null())
 

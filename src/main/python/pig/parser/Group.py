@@ -32,4 +32,4 @@ class Group(Node):
 
         GlobalContext.add(self.src, self)
 
-        return "%s = %s.groupBy(%s)" % (self.src, ", ".join(items))
+        return "%s = %s.groupBy(%s)" % (self.src.toSpark(), self.target.toSpark(), ", ".join(items))

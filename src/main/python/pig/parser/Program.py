@@ -1,5 +1,7 @@
 from Node import Node
 from Register import Register
+from Set import Set
+
 
 class Program(Node):
     def __init__(self, statements):
@@ -33,7 +35,7 @@ class Program(Node):
         body = []
 
         for statement in self.children:
-            if isinstance(statement, Register):
+            if isinstance(statement, (Register, Set)):
                 continue
 
             body.append(statement.toSpark())

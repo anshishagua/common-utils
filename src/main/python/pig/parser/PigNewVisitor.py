@@ -33,7 +33,7 @@ from ConditionExpr import ConditionExpr
 from Null import Null
 from Boolean import Boolean
 from ConditionCase import ConditionCase
-from ValueCase import ValuseCase
+from ValueCase import ValueCase
 from FieldRange import FieldRange
 from Foreach import Foreach
 from Alias import Alias
@@ -45,6 +45,8 @@ from Flatten import Flatten
 from Generate import Genereate
 from Split import Split
 from Aggregation import Aggregation
+from Cube import Cube
+from Set import Set
 
 class PigNewVisitor(PigVisitor):
     # Visit a parse tree produced by PigParser#program.
@@ -52,6 +54,7 @@ class PigNewVisitor(PigVisitor):
         statements = []
 
         for context in ctx.statement():
+            print context.getText()
             statements.append(self.visit(context))
 
         return Program(statements)
@@ -72,11 +75,13 @@ class PigNewVisitor(PigVisitor):
     def visitCube_statement(self, ctx):
         target = Relation(ctx.IDENTIFIER().getText())
 
-        return self.visitChildren(ctx)
+        src, rollup_list = self.visit(ctx.cube_clause())
+
+        return Cube(target, src, rollup_list)
 
 
     # Visit a parse tree produced by PigParser#cube_clause.
-    """cube_clause : CUBE rel BY cube_rollup_list (COMMA cube_rollup_list )*;"""
+    """cube_clause : CUBE rel BY cube_rollup_list (COMMA cube_rollup_list)*;"""
     def visitCube_clause(self, ctx):
         src = self.visit(ctx.rel())
 
@@ -85,9 +90,7 @@ class PigNewVisitor(PigVisitor):
         for context in ctx.cube_rollup_list():
             rollup_list.append(self.visit(context))
 
-
-
-        return self.visitChildren(ctx)
+        return src, rollup_list[0]
 
 
     # Visit a parse tree produced by PigParser#cube_rollup_list.
@@ -182,12 +185,14 @@ class PigNewVisitor(PigVisitor):
 
     # Visit a parse tree produced by PigParser#set_statement.
     def visitSet_statement(self, ctx):
-        return self.visitChildren(ctx)
+        key, value = self.visit(ctx.set_clause())
 
+        return Set(key, value)
 
+    """set_clause: SET class_name property_value;"""
     # Visit a parse tree produced by PigParser#set_clause.
     def visitSet_clause(self, ctx):
-        return self.visitChildren(ctx)
+        return self.visit(ctx.class_name()), self.visit(ctx.property_value())
 
 
     # Visit a parse tree produced by PigParser#property_value.
@@ -265,7 +270,7 @@ class PigNewVisitor(PigVisitor):
             if alias is not None:
                 if alias.type == "CAST":
                     cast = Cast(alias.toType, arg)
-                    return Alias(cast, alias.expression)
+                    return Alias(alias.expression, cast)
                 else:
                     return Alias(alias, arg)
 
@@ -676,7 +681,7 @@ nested_op : nested_filter
         groupItems = self.visit(ctx.group_clause())
 
         src = groupItems[0].relation
-        fields = groupItems[1].groupByFields
+        fields = groupItems[0].groupByFields
 
         return Group(target, src, fields)
 
@@ -918,13 +923,13 @@ nested_op : nested_filter
                 expressions = []
                 values = []
 
-                for i in range(1, length, 2):
+                for i in range(1, length - 1, 2):
                     expressions.append(self.visit(ctx.expr(i)))
                     values.append(self.visit(ctx.expr(i + 1)))
 
                 values.append(self.visit(ctx.expr(length - 1)))
 
-                return ValuseCase(expr, expressions, values)
+                return ValueCase(expr, expressions, values)
             else:
                 expressions = []
                 values = []
@@ -956,7 +961,7 @@ nested_op : nested_filter
                     expressions.append(self.visit(ctx.expr(i)))
                     values.append(self.visit(ctx.expr(i + 1)))
 
-                return ValuseCase(expr, expressions, values)
+                return ValueCase(expr, expressions, values)
 
     """
         scalar : INTEGER

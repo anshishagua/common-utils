@@ -18,7 +18,7 @@ class Function(Node):
 
     def toSpark(self):
         name = self.name.lower()
-        sparkFuncName = name
+        sparkFuncName = "F." + name
 
         if name == 'todate':
             sparkFuncName = 'F.to_date'

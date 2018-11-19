@@ -8,4 +8,8 @@ class Boolean(Node):
         self.children = []
 
     def __str__(self):
-        return "TRUE" if self.value == True else "FALSE"
+        return "TRUE" if self.value else "FALSE"
+
+    def toSpark(self, raw=False):
+        return "TRUE" if self.value else "FALSE"
+

@@ -10,3 +10,6 @@ class Mod(Node):
 
     def __str__(self):
         return "%s % %s" % (self.left, self.right)
+
+    def toSpark(self, raw=False):
+        return "(%s) % (%s)" % (self.left.toSpark(), self.right.toSpark())
