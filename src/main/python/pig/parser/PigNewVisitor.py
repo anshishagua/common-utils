@@ -202,16 +202,16 @@ class PigNewVisitor(PigVisitor):
 
     # Visit a parse tree produced by PigParser#load_statement.
     def visitLoad_statement(self, ctx):
-        relation = ctx.IDENTIFIER().getText()
+        target = ctx.IDENTIFIER().getText()
 
-        directory = self.visit(ctx.load_clause())
+        load_clause = self.visit(ctx.load_clause())
 
-        return Load(relation, directory)
+        return Assign(target, load_clause)
 
     """load_clause: LOAD PARAM_PATTERN directory PARAM_PATTERN (USING function)?"""
     # Visit a parse tree produced by PigParser#load_clause.
     def visitLoad_clause(self, ctx):
-        return self.visit(ctx.directory())
+        return Load(ctx.directory().getText())
 
 
     # Visit a parse tree produced by PigParser#foreach_statement.
@@ -414,7 +414,7 @@ class PigNewVisitor(PigVisitor):
         else:
             expression = self.visit(ctx.nested_op())
 
-        if expression.isRelOp():
+        if expression.is_relation_op():
             target = Relation(target)
         else:
             target = Field(target)
@@ -497,11 +497,11 @@ nested_op : nested_filter
     """
     # Visit a parse tree produced by PigParser#nested_filter.
     def visitNested_filter(self, ctx):
-        relation = self.visit(ctx.nested_op_input())
+        src = self.visit(ctx.nested_op_input())
 
         condition = self.visit(ctx.expr())
 
-        return self.visitChildren(ctx)
+        return Filter(src, condition)
 
     """
         nested_op_input : col_ref | nested_proj;
@@ -558,17 +558,17 @@ nested_op : nested_filter
     # Visit a parse tree produced by PigParser#filter_statement.
     def visitFilter_statement(self, ctx):
         target = ctx.IDENTIFIER().getText()
-        src, condition = self.visit(ctx.filter_clause())
+        filter_clause = self.visit(ctx.filter_clause())
 
-        return Filter(src, target, condition)
+        return Assign(target, filter_clause)
 
 
     # Visit a parse tree produced by PigParser#filter_clause.
     def visitFilter_clause(self, ctx):
-        relation = ctx.IDENTIFIER().getText()
+        src = ctx.IDENTIFIER().getText()
         condition = self.visit(ctx.expr())
 
-        return (relation, condition)
+        return Filter(src, condition)
 
 
     # Visit a parse tree produced by PigParser#join_statement.

@@ -6,10 +6,10 @@ class Genereate(Node):
         self.fields = fields
         self.type = "GENERATE"
 
-    def toSpark(self, raw=False):
+    def to_spark(self, raw=False):
         items = []
 
         for field in self.fields:
-            items.append(field.toSpark())
+            items.append(field.to_spark())
 
-        return "%s = %s" % (self.src.toSpark(), ", ".join(items))
+        return "%s = %s" % (self.src.to_spark(), ", ".join(items))

@@ -10,6 +10,6 @@ class Boolean(Node):
     def __str__(self):
         return "TRUE" if self.value else "FALSE"
 
-    def toSpark(self, raw=False):
+    def to_spark(self, raw=False):
         return "TRUE" if self.value else "FALSE"
 

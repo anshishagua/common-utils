@@ -10,5 +10,5 @@ class Paren(Node):
     def __str__(self):
         return '"paren": "%s"' % (self.child)
 
-    def toSpark(self, raw=False):
-        return "(%s)" % (self.child.toSpark())
+    def to_spark(self, raw=False):
+        return "(%s)" % (self.child.to_spark())

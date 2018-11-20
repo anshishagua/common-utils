@@ -7,16 +7,16 @@ class Node(object):
         for child in children:
             child.parent = self
 
-    def getChild(self, i):
+    def get_child(self, i):
         return self.children[i]
 
     def __str__(self):
         return self.type
 
-    def toSpark(self, raw=False):
+    def to_spark(self, raw=False):
         return "%s" % (self)
 
-    def isRelOp(self):
+    def is_relation_op(self):
         return False
 
     def contains_aggregation(self):

@@ -10,5 +10,5 @@ class String(Node):
     def __str__(self):
         return "STRING: '%s'" % (self.value)
 
-    def toSpark(self):
+    def to_spark(self):
         return "'%s'" % (self.value)

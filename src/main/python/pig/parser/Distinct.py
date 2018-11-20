@@ -11,5 +11,5 @@ class Distinct(Node):
     def __str__(self):
         return "DISTINCT[src:%s, target:%s]" % (self.src, self.target)
 
-    def toSpark(self):
-        return "%s = %s.distinct()" % (self.target, self.src.toSpark())
+    def to_spark(self):
+        return "%s = %s.distinct()" % (self.target, self.src.to_spark())

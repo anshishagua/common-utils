@@ -23,7 +23,7 @@ class Function(Node):
         self.children = args
         self.type = "FUNC"
 
-    def isRelOp(self):
+    def is_relation_op(self):
         if self.name == "TOP":
             return True
         return False
@@ -31,7 +31,7 @@ class Function(Node):
     def __str__(self):
         return "FUNC, name:%s, args:(%s)" % (self.name, ", ".join(map(str, self.args)))
 
-    def toSpark(self):
+    def to_spark(self):
         name = self.name
         sparkFuncName = name
 
@@ -53,9 +53,9 @@ class Function(Node):
         elif name == 'TOP':
             sparkFuncName = "df_top_elements"
 
-            topN = self.args[0].toSpark()
-            fieldIndex = self.args[1].toSpark()
-            relation = self.args[2].toSpark(True)
+            topN = self.args[0].to_spark()
+            fieldIndex = self.args[1].to_spark()
+            relation = self.args[2].to_spark(True)
 
             return "%s(%s, %s, %s, %s)" % (sparkFuncName, relation, "111", fieldIndex, topN)
         elif name == "ToUnixTime":
@@ -64,21 +64,21 @@ class Function(Node):
             sparkFuncName = "F.date_format"
         elif name == "ToMilliSeconds":
             sparkFuncName = "F.to_timestamp"
-            return "%s(%s) * 1000" % (sparkFuncName, self.args[0].toSpark())
+            return "%s(%s) * 1000" % (sparkFuncName, self.args[0].to_spark())
         elif name == "SUBSTRING":
             sparkFuncName = "F.substring"
-            arg_start_index = self.args[0].toSpark()
-            arg_length = "%s - %s" % (self.args[1].toSpark(), self.args[0].toSpark())
+            arg_start_index = self.args[0].to_spark()
+            arg_length = "%s - %s" % (self.args[1].to_spark(), self.args[0].to_spark())
 
             return "%s(%s, %s)" % (sparkFuncName, arg_start_index, arg_length)
         elif name == "STARTSWITH":
             sparkFuncName = "F.instr"
 
-            return "%s(%s, %s) == 1" % (sparkFuncName, self.args[0].toSpark(), self.args[1].toSpark())
+            return "%s(%s, %s) == 1" % (sparkFuncName, self.args[0].to_spark(), self.args[1].to_spark())
 
         args = []
 
         for arg in self.args:
-            args.append(arg.toSpark())
+            args.append(arg.to_spark())
 
         return "%s(%s)" % (sparkFuncName, ", ".join(args))

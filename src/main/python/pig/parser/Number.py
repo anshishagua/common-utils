@@ -10,6 +10,6 @@ class Number(Node):
     def __str__(self):
         return "NUMBER: %s" % str(self.value)
 
-    def toSpark(self):
+    def to_spark(self):
         return "%s" % str(self.value)
 

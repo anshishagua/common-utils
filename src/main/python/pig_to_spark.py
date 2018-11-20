@@ -79,7 +79,7 @@ def to_spark(pigFilePath):
 
     program = visitor.visitProgram(tree)
 
-    print program.toSpark()
+    print program.to_spark()
 
 
 
@@ -100,5 +100,3 @@ def main():
 
     to_spark(path)
 
-
-main()

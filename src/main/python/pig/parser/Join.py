@@ -14,12 +14,12 @@ class Join(Node):
         self.joinItems = joinItems
         self.type = "JOIN"
 
-    def toSpark(self):
+    def to_spark(self):
         if self.joinType == "INNER":
             relations = []
 
             for joinItem in self.joinItems:
-                relations.append(joinItem.relation.toSpark())
+                relations.append(joinItem.relation.to_spark())
 
             fields = []
 

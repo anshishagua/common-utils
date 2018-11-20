@@ -11,7 +11,7 @@ class Split(Node):
         self.targets = targets
         self.type = "SPLIT"
 
-    def toSpark(self, raw=False):
+    def to_spark(self, raw=False):
         targets = []
         conditions = []
 
@@ -34,7 +34,7 @@ class Split(Node):
 
                 condition = And(condition, not_condition)
 
-            code = "%s = %s.filter(%s)" % (target.toSpark(), self.src.toSpark(), condition.toSpark())
+            code = "%s = %s.filter(%s)" % (target.to_spark(), self.src.to_spark(), condition.to_spark())
 
             results.append(code)
 
@@ -54,7 +54,7 @@ class Split(Node):
 
             not_condition = Not(condition)
 
-            code = "%s = %s.filter(%s)" % (target.toSpark(), self.src.toSpark(), not_condition.toSpark())
+            code = "%s = %s.filter(%s)" % (target.to_spark(), self.src.to_spark(), not_condition.to_spark())
 
             results.append(code)
 

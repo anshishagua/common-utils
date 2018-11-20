@@ -4,10 +4,10 @@ import re
 
 
 class Load(Node):
-    def __init__(self, relation, schema):
-        self.relation = relation
+    def __init__(self, schema):
         self.schema = schema
         self.type = "LOAD"
+        self.children = []
 
     def getRelation(self):
         return self.relation
@@ -15,10 +15,13 @@ class Load(Node):
     def getSchema(self):
         return self.schema
 
+    def is_relation_op(self):
+        return True
+
     def __str__(self):
         return "[type:%s, relation:%s, schema:%s]" % (self.type, self.relation, self.schema)
 
-    def toSpark(self):
+    def to_spark(self):
         schema_root_path = GlobalContext.get("schema_root")
 
         schema_name = self.schema
@@ -42,4 +45,4 @@ class Load(Node):
         else:
             schema = "'" + schema + "'"
 
-        return "%s = load_data_to_spark_dataframe(sc, %s, params)" % (self.relation, schema)
+        return "load_data_to_spark_dataframe(sc, %s, params)" % (schema)

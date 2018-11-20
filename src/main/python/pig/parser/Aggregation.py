@@ -10,5 +10,5 @@ class Aggregation(Node):
         self.expr = expr
         self.type = "AGGR"
 
-    def toSpark(self, raw=False):
-        return "F.%s(%s)" % (self.aggr_type.lower(), self.expr.toSpark())
+    def to_spark(self, raw=False):
+        return "F.%s(%s)" % (self.aggr_type.lower(), self.expr.to_spark())

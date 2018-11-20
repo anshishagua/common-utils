@@ -8,13 +8,13 @@ class GroupItem(Node):
         self.groupAll = True if groupByFields is None else False
         self.type = "GROUP_ITEM"
 
-    def toSpark(self, raw=False):
+    def to_spark(self, raw=False):
         fields = []
 
         for field in self.groupByFields:
-            fields.append(field.toSpark())
+            fields.append(field.to_spark())
 
-        return "%s = %s.groupBy([%s])" % (self.relation.toSpark(), self.relation.toSpark(), ", ".join(fields))
+        return "%s = %s.groupBy([%s])" % (self.relation.to_spark(), self.relation.to_spark(), ", ".join(fields))
 
 
 class Group(Node):
@@ -24,12 +24,12 @@ class Group(Node):
         self.fields = fields
         self.type = "GROUP"
 
-    def toSpark(self, raw=False):
+    def to_spark(self, raw=False):
         items = []
 
         for item in self.fields:
-            items.append(item.toSpark())
+            items.append(item.to_spark())
 
         GlobalContext.add(self.src, self)
 
-        return "%s = %s.groupBy(%s)" % (self.src.toSpark(), self.target.toSpark(), ", ".join(items))
+        return "%s = %s.groupBy(%s)" % (self.src.to_spark(), self.target.to_spark(), ", ".join(items))

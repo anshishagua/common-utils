@@ -11,5 +11,5 @@ class Multiply(Node):
     def __str__(self):
         return "%s * %s" % (self.left, self.right)
 
-    def toSpark(self, raw=False):
-        return "(%s) * (%s)" % (self.left.toSpark(), self.right.toSpark())
+    def to_spark(self, raw=False):
+        return "(%s) * (%s)" % (self.left.to_spark(), self.right.to_spark())

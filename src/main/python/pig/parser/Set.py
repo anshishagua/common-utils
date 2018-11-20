@@ -10,5 +10,5 @@ class Set(Node):
     def __str__(self):
         return "[type:%s, key:%s, value:%s]" % (self.type, self.key, self.value)
 
-    def toSpark(self, raw=False):
+    def to_spark(self, raw=False):
         pass

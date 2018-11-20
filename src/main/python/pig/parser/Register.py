@@ -10,5 +10,5 @@ class Register(Node):
     def __str__(self):
         return "[type:%s, file:%s, alias:%s]" % (self.type, self.file, self.alias)
 
-    def toSpark(self, raw=False):
+    def to_spark(self, raw=False):
         return ""

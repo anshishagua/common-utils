@@ -3,9 +3,7 @@ from antlr4 import CommonTokenStream
 
 from pig.generated.PigLexer import PigLexer
 from pig.generated.PigParser import PigParser
-from pig.parser.PigBaseVisitor import PigBaseVisitor
 from pig.parser.PigNewVisitor import PigNewVisitor
-from pig.parser.Number import Number
 from pig_to_spark import remove_comments
 
 
@@ -50,8 +48,13 @@ STORE total_downloads INTO ###APP_TOTAL_DOWNLOADS_I|range_type=MONTH###;
     """
 
     program = """
+            a = LOAD ###erwqrqwrqwe###; 
+                             fact_checkin = FILTER fact_checkin BY utc_date_key > 1;
+
+
     fact_checkin = FOREACH(GROUP fact_checkin BY (utc_date_key, utc_time_key, product_key, device_key, subscriber_key, operator_key, guid_key, os_version, reason)){
                  aaa = aaaa + 1;
+                 fact_checkin = FILTER fact_checkin BY utc_date_key > 1;
                  t = TOP(1, 12, fact_checkin);
                  GENERATE FLATTEN(t) AS (
                      utc_date_key,
@@ -86,7 +89,7 @@ STORE total_downloads INTO ###APP_TOTAL_DOWNLOADS_I|range_type=MONTH###;
 
     program = visitor.visitProgram(tree)
 
-    print program.toSpark()
+    print program.to_spark()
 
 
 main()

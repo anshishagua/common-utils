@@ -8,7 +8,7 @@ class Flatten(Node):
         self.children = []
         self.type = "FLATTEN"
 
-    def toSpark(self, raw=False):
+    def to_spark(self, raw=False):
         if self.expression.type == 'FIELD':
             if self.expression.fieldName == 'group':
                 pass

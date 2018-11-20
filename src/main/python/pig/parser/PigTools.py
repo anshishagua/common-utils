@@ -19,4 +19,4 @@ def to_spark():
 
     program = visitor.visitProgram(tree)
 
-    print program.toSpark()
+    print program.to_spark()

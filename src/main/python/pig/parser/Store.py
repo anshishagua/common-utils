@@ -15,7 +15,7 @@ class Store(Node):
     def __str__(self):
         return "[type:%s, relation:%s, schema:%s]" % (self.type, self.relation, self.schema)
 
-    def toSpark(self):
+    def to_spark(self):
         schema = self.schema
 
         params = re.findall("\$[a-zA-Z0-9_]+", schema)

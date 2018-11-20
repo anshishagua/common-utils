@@ -7,10 +7,10 @@ class Cube(Node):
         self.target = target
         self.rollup_list = rollup_list
 
-    def toSpark(self, raw=False):
+    def to_spark(self, raw=False):
         rollup_list = []
 
         for item in self.rollup_list:
-            rollup_list.append(item.toSpark())
+            rollup_list.append(item.to_spark())
 
-        return "%s = %s.cube([%s])" % (self.target.toSpark(), self.src.toSpark(), ", ".join(rollup_list))
+        return "%s = %s.cube([%s])" % (self.target.to_spark(), self.src.to_spark(), ", ".join(rollup_list))
