@@ -5,6 +5,7 @@ class Aggregation(Node):
     TYPES = ["SUM", "MAX", "MIN", "AVG", "COUNT"]
 
     def __init__(self, aggr_type, expr):
+        Node.__init__(self, [expr])
         self.aggr_type = aggr_type
         self.expr = expr
         self.type = "AGGR"

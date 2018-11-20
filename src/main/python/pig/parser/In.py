@@ -16,4 +16,4 @@ class In(Node):
         for child in self.children:
             in_list.append(child.toSpark())
 
-        return "%s.in(%s)" % (self.expression.toSpark(), ", ".join(in_list))
+        return "%s.isin([%s])" % (self.expression.toSpark(), ", ".join(in_list))

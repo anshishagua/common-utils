@@ -13,7 +13,7 @@ class Foreach(Node):
         self.genItems = genItems
 
     def __str__(self):
-        return "FOREACH:%s = for %s, genereate:%s" % (self.target, self.src, ", ".join(map(str, self.genItems)))
+        return "FOREACH:%s = for %s, generate:%s" % (self.target, self.src, ", ".join(map(str, self.genItems)))
 
     def toSpark(self):
         result = ""
@@ -31,9 +31,20 @@ class Foreach(Node):
         else:
             source_table = self.src.toSpark()
 
-        if self.nested_commands is not None:
+        select_fields = []
+
+        if self.nested_commands:
             for command in self.nested_commands:
-                result += command.toSpark()
+                result += command.toSpark() + "\n"
+
+                #assign
+                if command.children[0].isRelOp():
+                    self.src = command.target
+                else:
+                    select_fields.append(command)
+
+        for select_field in select_fields:
+            result += "%s = %s.withColumn(%s, %s)" % ()
 
         has_aggregation = False
 

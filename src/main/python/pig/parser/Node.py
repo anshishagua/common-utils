@@ -1,9 +1,11 @@
 
 class Node(object):
-    def __init__(self, children):
+    def __init__(self, children=[]):
         self.children = children
         self.type = "NODE"
         self.parent = None
+        for child in children:
+            child.parent = self
 
     def getChild(self, i):
         return self.children[i]
