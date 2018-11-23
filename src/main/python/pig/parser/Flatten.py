@@ -10,7 +10,7 @@ class Flatten(Node):
 
     def to_spark(self, raw=False):
         if self.expression.type == 'FIELD':
-            if self.expression.fieldName == 'group':
+            if self.expression.name == 'group':
                 pass
             else:
                 pass

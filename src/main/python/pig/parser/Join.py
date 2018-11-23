@@ -24,7 +24,7 @@ class Join(Node):
             fields = []
 
             for field in self.joinItems[0].fields:
-                fields.append("'" + field.fieldName + "'")
+                fields.append("'" + field.name + "'")
 
             return '%s = join_spark_dfs([%s], [%s])' % (self.target, ", ".join(relations), ", ".join(fields))
         else:
@@ -34,7 +34,7 @@ class Join(Node):
             fields = []
 
             for field in self.joinItems[0].fields:
-                fields.append("'" + field.fieldName + "'")
+                fields.append("'" + field.name + "'")
 
             return '%s = join_spark_df(%s, %s, [%s], "%s")' % (self.target, left, right, ", ".join(fields), joinType)
 

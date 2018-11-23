@@ -18,7 +18,7 @@ class Program(Node):
 
         return result
 
-    def to_spark(self):
+    def to_spark(self, exec_context):
         code = []
         imports = []
 
@@ -38,7 +38,7 @@ class Program(Node):
             if isinstance(statement, (Register, Set)):
                 continue
 
-            body.append(statement.to_spark())
+            body.append(statement.to_spark(exec_context))
 
         for statement in body:
             if isinstance(statement, list):

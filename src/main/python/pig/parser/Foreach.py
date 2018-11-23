@@ -1,13 +1,13 @@
 from Node import Node
-from Relation import Relation
+from SimpleRelation import SimpleRelation
 from Flatten import Flatten
 from Field import Field
 from Aggregation import Aggregation
 from Group import GroupItem
 
+
 class Foreach(Node):
-    def __init__(self, target, src, nested_commands, genItems):
-        self.target = target
+    def __init__(self, src, nested_commands, genItems):
         self.src = src
         self.nested_commands = nested_commands
         self.genItems = genItems
@@ -46,7 +46,7 @@ class Foreach(Node):
         for select_field in select_fields:
             result += "%s = %s.withColumn('%s', %s)\n" % (self.src.to_spark(),
                                                       self.src.to_spark(),
-                                                      select_field.target.fieldName,
+                                                      select_field.target.name,
                                                       select_field.children[0].to_spark())
 
         has_aggregation = False
@@ -101,9 +101,9 @@ class Foreach(Node):
                     select_fields.append(field.to_spark())
 
                 if isinstance(item, Field):
-                    if item.fieldName == "group":
+                    if item.name == "group":
                         pass
-                    elif item.fieldName == "cube":
+                    elif item.name == "cube":
                         pass
                     else:
                         pass
@@ -114,6 +114,6 @@ class Foreach(Node):
             else:
                 select_fields.append(item.to_spark())
 
-        result += "%s = %s.select(%s)" % (self.target.to_spark(), self.src.to_spark(), ", ".join(select_fields))
+        result += "%s.select(%s)" % (self.src.to_spark(), ", ".join(select_fields))
 
         return result

@@ -1,16 +1,16 @@
 
+data_map = {}
 
-class GlobalContext(object):
-    context = {}
+def set_value(key, value):
+    global data_map
 
-    @staticmethod
-    def add(key, value):
-        GlobalContext.context[key] = value
+    data_map[key] = value
+    #if data_map is None:
+    #    data_map = {}
+    #data_map[key] = value
 
-    @staticmethod
-    def get(key):
-        return GlobalContext.context.get(key, None)
 
-    @staticmethod
-    def has_key(key):
-        return key in GlobalContext.context
+def get_value(key):
+    global data_map
+
+    return data_map[key]

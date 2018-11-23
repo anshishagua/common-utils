@@ -2,22 +2,19 @@ from Node import Node
 
 
 class Field(Node):
-    def __init__(self, fieldName, relation=None):
+    def __init__(self, name, relation=None):
         self.relation = relation
-        self.fieldName = fieldName
+        self.name = name
         self.children = []
         self.type = "FIELD"
 
     def __str__(self):
-        return '"FIELD": {"relation": "%s", "fieldName": "%s"}' % (self.relation, self.fieldName)
+        return '"FIELD": {"relation": "%s", "field_name": "%s"}' % (self.relation, self.name)
 
-    def to_spark(self, raw=False):
+    def to_spark(self, exec_context):
         if self.relation is None:
-            if raw:
-                return self.fieldName
-            else:
-                return "F.col('%s')" % (self.fieldName)
+                return "F.col('%s')" % (self.name)
         else:
-            return "%s.%s" % (self.relation, self.fieldName)
+            return "%s.%s" % (self.relation, self.name)
 
 ALL_FIELD = Field("*")

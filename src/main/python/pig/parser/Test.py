@@ -5,6 +5,9 @@ from pig.generated.PigLexer import PigLexer
 from pig.generated.PigParser import PigParser
 from pig.parser.PigNewVisitor import PigNewVisitor
 from pig_to_spark import remove_comments
+import GlobalContext
+import AAA
+from context import ExecContext
 
 
 def load_program(path):
@@ -48,48 +51,34 @@ STORE total_downloads INTO ###APP_TOTAL_DOWNLOADS_I|range_type=MONTH###;
     """
 
     program = """
-            a = LOAD ###erwqrqwrqwe###; 
-                             fact_checkin = FILTER fact_checkin BY utc_date_key > 1;
+            http_agg_capi_log = LOAD ###CAPI_LOG_I|hour=*###;
+
+            ios_app_info_i = LOAD ###IOS_APP_INFO_I###;
+            android_app_info_i = LOAD ###ANDROID_APP_INFO_I###;
+            all_app_info = UNION ios_app_info_i, android_app_info_i;
+            http_agg_capi_log = FOREACH http_agg_capi_log GENERATE '$date' AS date, 
+            $0..;    """
+
+    GlobalContext.set_value("schema_root", "/Users/xiaoli/IdeaProjects/aardvark-analyze/statistics/usage//schema/definitions/")
 
 
-    fact_checkin = FOREACH(GROUP fact_checkin BY (utc_date_key, utc_time_key, product_key, device_key, subscriber_key, operator_key, guid_key, os_version, reason)){
-                 aaa = aaaa + 1;
-                 fact_checkin = FILTER fact_checkin BY utc_date_key > 1;
-                 t = TOP(1, 12, fact_checkin);
-                 GENERATE FLATTEN(t) AS (
-                     utc_date_key,
-                     utc_time_key,
-                     device_key,
-                     product_key,
-                     operator_key,
-                     reason,
-                     os_version,
-                     guid_key,
-                     subscriber_key,
-                     checkin_count,
-                     transformed_at,
-                     received_at,
-                     agent_received_at,
-                     bad_record_key
-                 );
-}
-    
-    """
+    #program = remove_comments(program)
 
-
-    program = remove_comments(program)
-
-    inputStream = InputStream(program)
-    lexer = PigLexer(inputStream)
+    input_stream = InputStream(program)
+    lexer = PigLexer(input_stream)
     stream = CommonTokenStream(lexer)
     parser = PigParser(stream)
     tree = parser.program()
 
     visitor = PigNewVisitor()
-
+    AAA.name = "ewrwerwer"
     program = visitor.visitProgram(tree)
 
-    print program.to_spark()
+    exec_context = ExecContext()
+    exec_context.schema_root = "/Users/xiaoli/IdeaProjects/aardvark-analyze/statistics/usage//schema/definitions/"
+    print program.to_spark(exec_context)
 
+    print "%s" % exec_context.relation_map
 
 main()
+

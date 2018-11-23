@@ -13,7 +13,7 @@ class Node(object):
     def __str__(self):
         return self.type
 
-    def to_spark(self, raw=False):
+    def to_spark(self, exec_context):
         return "%s" % (self)
 
     def is_relation_op(self):

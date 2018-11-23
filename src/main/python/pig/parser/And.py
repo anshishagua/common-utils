@@ -11,6 +11,6 @@ class And(Node):
     def __str__(self):
         return "%s AND %s" % (self.left, self.right)
 
-    def to_spark(self):
+    def to_spark(self, exec_context):
         return "(%s) & (%s)" % (self.left.to_spark(), self.right.to_spark())
 

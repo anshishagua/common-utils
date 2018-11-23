@@ -11,5 +11,5 @@ class Compare(Node):
     def __str__(self):
         return "%s %s %s" % (self.left, self.compareType, self.right)
 
-    def to_spark(self):
-        return "%s %s %s" % (self.left.to_spark(), self.compareType, self.right.to_spark())
+    def to_spark(self, exec_context):
+        return "%s %s %s" % (self.left.to_spark(exec_context), self.compareType, self.right.to_spark(exec_context))
