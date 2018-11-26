@@ -13,15 +13,15 @@ class ConditionCase(Node):
 
         self.type = "CONDITION_CASE"
 
-    def to_spark(self, raw=False):
+    def to_spark(self, exec_context):
         result = "F"
 
         length = len(self.conditions)
 
         for i in range(length):
-            result += ".when(%s, %s)" % (self.conditions[i].to_spark(), self.values[i].to_spark())
+            result += ".when(%s, %s)" % (self.conditions[i].to_spark(exec_context), self.values[i].to_spark(exec_context))
 
-        result += ".otherwise(%s)" % (self.values[length].to_spark())
+        result += ".otherwise(%s)" % (self.values[length].to_spark(exec_context))
 
         return result
 

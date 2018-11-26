@@ -8,5 +8,5 @@ class Not(Node):
     def __str__(self):
         return "NOT %s" % (self.condition)
 
-    def to_spark(self):
-        return "not (%s)" % (self.condition.to_spark())
+    def to_spark(self, exec_context):
+        return "not (%s)" % (self.condition.to_spark(exec_context))

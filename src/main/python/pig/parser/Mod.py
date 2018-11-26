@@ -11,5 +11,5 @@ class Mod(Node):
     def __str__(self):
         return "%s % %s" % (self.left, self.right)
 
-    def to_spark(self, raw=False):
-        return "(%s) % (%s)" % (self.left.to_spark(), self.right.to_spark())
+    def to_spark(self, exec_context):
+        return "(%s) % (%s)" % (self.left.to_spark(exec_context), self.right.to_spark(exec_context))

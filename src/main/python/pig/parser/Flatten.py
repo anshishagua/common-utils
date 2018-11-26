@@ -20,7 +20,7 @@ class Flatten(Node):
 
             return generate_items
 
-    def to_spark(self, raw=False):
+    def to_spark(self, exec_context):
         if self.expression.type == 'FIELD':
             if self.expression.name == 'group':
                 pass

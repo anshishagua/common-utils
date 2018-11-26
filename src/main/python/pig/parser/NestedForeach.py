@@ -4,6 +4,7 @@ from Assign import Assign
 from Flatten import Flatten
 from SimpleRelation import SimpleRelation
 from Aggregation import Aggregation
+from Field import Field
 
 
 class NestedForeach(Node):
@@ -63,6 +64,11 @@ class NestedForeach(Node):
 				aggregation_items.append(generate_item.to_spark(exec_context))
 			else:
 				not_aggregation_items.append(generate_item.to_spark(exec_context))
+
+			if isinstance(generate_item, Field):
+				self.fields.append(generate_item)
+			else:
+				self.fields.append(generate_item.name)
 
 		if exec_context.last_relation.get("name") is not None:
 			src = exec_context.last_relation.get("name")

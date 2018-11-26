@@ -10,5 +10,5 @@ class IsNotNull(Node):
     def __str__(self):
         return "%s IS NOT NULL" % (self.expression)
 
-    def to_spark(self, raw=False):
-        return "%s.isNotNull()" % (self.expression.to_spark())
+    def to_spark(self, exec_context):
+        return "%s.isNotNull()" % (self.expression.to_spark(exec_context))

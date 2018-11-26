@@ -72,6 +72,10 @@ class Function(Node):
             field_index = int(self.args[1].to_spark(exec_context))
             relation = self.args[2].name
 
+            print field_index
+
+            if field_index == 15:
+                pass
             sort_by_field = exec_context.relation_map[relation][field_index].name
 
             group_by_fields = ", ".join(["'" + field.name + "'" for field in exec_context.params["group_by"].group_by_fields])
@@ -88,21 +92,22 @@ class Function(Node):
             func_name = "F.date_format"
         elif name == "ToMilliSeconds":
             func_name = "F.to_timestamp"
-            return "%s(%s) * 1000" % (func_name, self.args[0].to_spark())
+            return "%s(%s) * 1000" % (func_name, self.args[0].to_spark(exec_context))
         elif name == "SUBSTRING":
             func_name = "F.substring"
-            arg_start_index = self.args[0].to_spark()
-            arg_length = "%s - %s" % (self.args[1].to_spark(), self.args[0].to_spark())
+            arg_start_index = self.args[0].to_spark(exec_context)
+            arg_length = "%s - %s" % (self.args[1].to_spark(exec_context), self.args[0].to_spark(exec_context))
 
             return "%s(%s, %s)" % (func_name, arg_start_index, arg_length)
         elif name == "STARTSWITH":
             func_name = "F.instr"
 
-            return "%s(%s, %s) == 1" % (func_name, self.args[0].to_spark(), self.args[1].to_spark())
+            return "%s(%s, %s) == 1" % (func_name, self.args[0].to_spark(exec_context), self.args[1].to_spark(exec_context))
 
         args = []
 
         for arg in self.args:
+            print arg
             args.append(arg.to_spark(exec_context))
 
         return "%s(%s)" % (func_name, ", ".join(args))
