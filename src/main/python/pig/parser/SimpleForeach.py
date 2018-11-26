@@ -1,5 +1,6 @@
 from Node import Node
 from FieldRange import FieldRange
+from Field import Field, ALL_FIELD
 
 
 class SimpleForeach(Node):
@@ -22,7 +23,19 @@ class SimpleForeach(Node):
 
 				for item in items:
 					generate_items.append(item.to_spark(exec_context))
+					self.fields.append(item)
+			elif isinstance(generate_item, Field) and generate_item == ALL_FIELD:
+				items = exec_context.relation_map[self.src.name]
+
+				for item in items:
+					generate_items.append(item.to_spark(exec_context))
+					self.fields.append(item)
 			else:
 				generate_items.append(generate_item.to_spark(exec_context))
+
+				if isinstance(generate_item, Field):
+					self.fields.append(generate_item)
+				else:
+					self.fields.append(generate_item.name)
 
 		return "%s.select(%s)" % (self.src.to_spark(exec_context), ", ".join(generate_items))

@@ -17,4 +17,5 @@ class Field(Node):
         else:
             return "%s.%s" % (self.relation, self.name)
 
+
 ALL_FIELD = Field("*")

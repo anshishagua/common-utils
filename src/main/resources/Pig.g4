@@ -63,7 +63,7 @@ field: IDENTIFIER | DOLAR INTEGER;
 SEMI_COLON: ';';
 SINGLE_QUOTE: '\'';
 
-USING: 'USING';
+USING: 'USING' | 'using';
 LEFT_PAREN: '(';
 RIGHT_PAREN: ')';
 AS: 'AS' | 'as';
@@ -405,9 +405,9 @@ class_name: IDENTIFIER (PERIOD IDENTIFIER)*;
 
 
 DOLLAR_VAR: DOLAR INTEGER;
-END_OF_LINE_COMMENT: MINUS MINUS ~('\n')* '\n';
+END_OF_LINE_COMMENT: MINUS MINUS ~('\n')* '\n' -> skip;
 
-COMMENT: '/*' .*? '*/';
+COMMENT: '/*' .*? '*/' -> skip;
 
 
 

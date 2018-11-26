@@ -1,6 +1,9 @@
 from Node import Node
 from Register import Register
 from Set import Set
+from Assign import Assign
+from Group import Group
+from ComplexRelation import ComplexRelation
 
 
 class Program(Node):
@@ -21,24 +24,47 @@ class Program(Node):
     def to_spark(self, exec_context):
         code = []
         imports = []
+        body = []
 
         imports.append("import pyspark.sql.functions as F")
         imports.append("from bdce.common.spark.spark_utils import load_data_to_spark_dataframe, store_spark_dataframe")
         imports.append("from bdce.common.spark.udfs import join_spark_df, join_spark_dfs, union_spark_dfs")
 
-        for line in imports:
-            code.append(line)
-        code.append("\n")
+        i = 0
 
-        code.append("def main(sc, params):")
+        while i < len(self.children):
+            statement = self.children[i]
 
-        body = []
+            if isinstance(statement, Set):
 
-        for statement in self.children:
-            if isinstance(statement, (Register, Set)):
+                i += 1
+                continue
+            if isinstance(statement, Register):
+                file = statement.file.replace(".py", "")
+
+                if statement.alias:
+                    imports.append("import %s as %s" % (file, statement.alias))
+                else:
+                    imports.append("import %s" % (file))
+
+                i += 1
+                continue
+
+            if isinstance(statement, Assign) and isinstance(statement.children[1], Group):
+                next_statement = self.children[i + 1].children[1]
+                next_statement.src = ComplexRelation(statement.children[1])
+
+                i += 1
                 continue
 
             body.append(statement.to_spark(exec_context))
+
+            i += 1
+
+        for line in imports:
+            code.append(line)
+        code.append("\n")
+        code.append("def main(sc, params):")
 
         for statement in body:
             if isinstance(statement, list):

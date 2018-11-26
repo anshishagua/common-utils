@@ -525,7 +525,7 @@ class PigParser ( Parser ):
 
     literalNames = [ u"<INVALID>", u"'['", u"']'", u"'..'", u"<INVALID>", 
                      u"<INVALID>", u"'LOAD'", u"<INVALID>", u"<INVALID>", 
-                     u"'_'", u"'$'", u"';'", u"'''", u"'USING'", u"'('", 
+                     u"'_'", u"'$'", u"';'", u"'''", u"<INVALID>", u"'('", 
                      u"')'", u"<INVALID>", u"':'", u"'MAP'", u"'TUPLE'", 
                      u"<INVALID>", u"'boolean'", u"'int'", u"'long'", u"'float'", 
                      u"'double'", u"'chararray'", u"'bytearray'", u"'datetime'", 

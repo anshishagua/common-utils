@@ -22,7 +22,7 @@ from Number import Number
 from String import String
 from Function import Function
 from Cast import Cast
-from Field import Field
+from Field import Field, ALL_FIELD
 from SimpleRelation import SimpleRelation
 from CaseWhen import CaseWhen
 from Paren import Paren
@@ -56,7 +56,6 @@ class PigNewVisitor(PigVisitor):
         statements = []
 
         for context in ctx.statement():
-            print context.getText()
             statements.append(self.visit(context))
 
         return Program(statements)
@@ -160,7 +159,7 @@ class PigNewVisitor(PigVisitor):
         alias = None
 
         if ctx.IDENTIFIER() is not None:
-            alias = alias
+            alias = ctx.IDENTIFIER().getText()
 
         return Register(register_file, alias)
 
@@ -282,13 +281,15 @@ class PigNewVisitor(PigVisitor):
 
             return arg
         else:
-            arg = self.visit(ctx.flatten_clause())
+            flatten = self.visit(ctx.flatten_clause())
 
-            fields = None
+            as_fields = None
             if ctx.generate_as_clause() is not None:
-                fields = self.visit(ctx.generate_as_clause())
+                as_fields = self.visit(ctx.generate_as_clause())
 
-            return Flatten(arg, fields)
+            flatten.as_fields = as_fields
+
+            return flatten
 
         #return self.visitChildren(ctx)
 
@@ -584,9 +585,9 @@ nested_op : nested_filter
     def visitJoin_statement(self, ctx):
         target = ctx.IDENTIFIER().getText()
 
-        joinType, joinItems = self.visit(ctx.join_clause())
+        join = self.visit(ctx.join_clause())
 
-        return Join(target, joinType, joinItems)
+        return Assign(target, join)
 
     """join_clause: JOIN joinSubClause (USING join_type)? partition_clause? parallel_clause?;"""
     # Visit a parse tree produced by PigParser#join_clause.
@@ -602,28 +603,28 @@ nested_op : nested_filter
 """
     # Visit a parse tree produced by PigParser#joinSubClause.
     def visitJoinSubClause(self, ctx):
-        joinType = "INNER"
+        join_type = "INNER"
         if ctx.LEFT() is not None:
-            joinType = "LEFT"
+            join_type = "LEFT"
         if ctx.RIGHT() is not None:
-            joinType = "RIGHT"
+            join_type = "RIGHT"
         if ctx.FULL() is not None:
-            joinType = "FULL"
+            join_type = "FULL"
 
-        joinItems = []
+        join_items = []
 
         for context in ctx.joinItem():
-            joinItems.append(self.visit(context))
+            join_items.append(self.visit(context))
 
-        return (joinType, joinItems)
+        return Join(join_type, join_items)
 
     """joinItem : rel join_groupby_clause;"""
     # Visit a parse tree produced by PigParser#joinItem.
     def visitJoinItem(self, ctx):
         relation = self.visit(ctx.rel())
-        groupByFields = self.visit(ctx.join_groupby_clause())
+        group_by_fields = self.visit(ctx.join_groupby_clause())
 
-        return JoinItem(relation, groupByFields)
+        return JoinItem(relation, group_by_fields)
 
     """join_groupby_clause : BY ((LEFT_PAREN arg (COMMA arg)* RIGHT_PAREN) | arg);"""
     # Visit a parse tree produced by PigParser#join_groupby_clause.
@@ -641,7 +642,7 @@ nested_op : nested_filter
         if ctx.IDENTIFIER() is not None:
             return Field(ctx.IDENTIFIER().getText())
 
-        return Field("*")
+        return ALL_FIELD
 
     """rel : IDENTIFIER |  previous_rel | nested_op_clause;"""
     # Visit a parse tree produced by PigParser#rel.
@@ -687,12 +688,9 @@ nested_op : nested_filter
     """group_statement: rel ASSIGN group_clause SEMI_COLON?;"""
     def visitGroup_statement(self, ctx):
         target = self.visit(ctx.rel())
-        groupItems = self.visit(ctx.group_clause())
+        group = self.visit(ctx.group_clause())
 
-        src = groupItems[0].relation
-        fields = groupItems[0].groupByFields
-
-        return Group(target, src, fields)
+        return Assign(target, group)
 
     """group_clause: GROUP group_item_list ( USING QUOTEDSTRING )? parallel_clause?;"""
     # Visit a parse tree produced by PigParser#group_clause.
@@ -702,12 +700,12 @@ nested_op : nested_filter
 
     # Visit a parse tree produced by PigParser#group_item_list.
     def visitGroup_item_list(self, ctx):
-        groupItems = []
+        groups = []
 
         for context in ctx.group_item():
-            groupItems.append(self.visit(context))
+            groups.append(self.visit(context))
 
-        return groupItems
+        return groups[0]
 
     """rel ( join_group_by_clause | ALL | ANY ) ( INNER | OUTER )?;"""
     # Visit a parse tree produced by PigParser#group_item.
@@ -718,7 +716,7 @@ nested_op : nested_filter
         if ctx.join_group_by_clause() is not None:
             fields = self.visit(ctx.join_group_by_clause())
 
-        return GroupItem(relation, fields)
+        return Group(relation, fields)
 
     """join_group_by_clause : BY ((LEFT_PAREN arg_list RIGHT_PAREN) | real_arg );"""
     # Visit a parse tree produced by PigParser#join_group_by_clause.
@@ -742,7 +740,7 @@ nested_op : nested_filter
     # Visit a parse tree produced by PigParser#real_arg.
     def visitReal_arg(self, ctx):
         if ctx.STAR() is not None:
-            return Field("*")
+            return ALL_FIELD
 
         return self.visitChildren(ctx)
 
@@ -885,7 +883,7 @@ nested_op : nested_filter
                  | STAR;"""
     def visitField_reference(self, ctx):
         if ctx.STAR() is not None:
-            return Field("*")
+            return ALL_FIELD
 
         if ctx.PERIOD() is not None or ctx.DOUBLE_COLON() is not None:
             relation = ctx.IDENTIFIER()[0].getText()
@@ -988,6 +986,9 @@ nested_op : nested_filter
     def visitScalar(self, ctx):
         if ctx.INTEGER() is not None:
             return Number(long(ctx.INTEGER().getText()))
+
+        if ctx.LONGINTEGER() is not None:
+            return Number(long(ctx.LONGINTEGER().getText()))
 
         if ctx.FLOATNUMBER() is not None:
             return Number(float(ctx.FLOATNUMBER().getText()))

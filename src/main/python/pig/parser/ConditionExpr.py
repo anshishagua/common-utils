@@ -1,9 +1,7 @@
 from Node import Node
 
+
 class ConditionExpr(Node):
-
-    AAA = 111
-
     def __init__(self, condition, left, right):
         self.condition = condition
         self.left = left
@@ -14,5 +12,8 @@ class ConditionExpr(Node):
     def __str__(self):
         return "%s ? %s : %s" % (self.condition, self.left, self.right)
 
-    def to_spark(self, raw=False):
-        return "F.when(%s, %s).otherwise(%s)" % (self.condition.to_spark(), self.left.to_spark(), self.right.to_spark())
+    def to_spark(self, exec_context):
+        condition = self.condition.to_spark(exec_context)
+        when_expr = self.left.to_spark(exec_context)
+        otherwise_expr = self.right.to_spark(exec_context)
+        return "F.when(%s, %s).otherwise(%s)" % (condition, when_expr, otherwise_expr)

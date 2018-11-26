@@ -4,6 +4,7 @@ class Node(object):
         self.children = children
         self.type = "NODE"
         self.parent = None
+        self.spark_code = []
         for child in children:
             child.parent = self
 

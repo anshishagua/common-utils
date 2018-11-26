@@ -51,16 +51,64 @@ STORE total_downloads INTO ###APP_TOTAL_DOWNLOADS_I|range_type=MONTH###;
     """
 
     program = """
-            http_agg_capi_log = LOAD ###CAPI_LOG_I|hour=*###;
+    REGISTER ../pig_udfs/fact_udfs.py using org.apache.pig.scripting.jython.JythonScriptEngine as fact_udfs;
 
-            ios_app_info_i = LOAD ###IOS_APP_INFO_I###;
-            android_app_info_i = LOAD ###ANDROID_APP_INFO_I###;
-            all_app_info = UNION ios_app_info_i, android_app_info_i;
-            http_agg_capi_log = FOREACH http_agg_capi_log GENERATE '$date' AS date, 
-            $0..;    """
+selected_devices = LOAD ###MDM_OPERATOR_SELECTED_DEVICE_I###;
+plan_usage_monthly = LOAD ###MDM_OPERATOR_MATRIX_PLAN_USAGE_MONTHLY_I###;
 
-    GlobalContext.set_value("schema_root", "/Users/xiaoli/IdeaProjects/aardvark-analyze/statistics/usage//schema/definitions/")
+device_usage_j = JOIN selected_devices BY guid_key, plan_usage_monthly BY guid_key;
+device_usage = FOREACH device_usage_j GENERATE selected_devices::guid_key AS guid_key,
+    selected_devices::iso_country_code AS country_code,
+    selected_devices::operator_name AS operator_name,
+    selected_devices::platform AS platform,
+    selected_devices::device_type AS device_type,
+    selected_devices::max_network_capability AS max_network_capability,
+    fact_udfs.fix_data('$date', selected_devices::platform, plan_usage_monthly::domestic_mobile_bytes) AS domestic_mobile_bytes,
+    (selected_devices::max_network_capability == 'LTE' ? fact_udfs.fix_data('$date', selected_devices::platform, plan_usage_monthly::domestic_lte_bytes) : 0L) AS domestic_lte_bytes,
+    fact_udfs.fix_data('$date', selected_devices::platform, plan_usage_monthly::domestic_wifi_bytes) AS domestic_wifi_bytes,
+    fact_udfs.fix_data('$date', selected_devices::platform, plan_usage_monthly::roaming_mobile_bytes) AS roaming_mobile_bytes,
+    fact_udfs.fix_data('$date', selected_devices::platform, plan_usage_monthly::roaming_wifi_bytes) AS roaming_wifi_bytes,
+    (domestic_mobile_bytes > 0 ? 1 : 0) AS reported_domestic_mobile_bytes,
+    (domestic_wifi_bytes > 0 ? 1 : 0) AS reported_domestic_wifi_bytes,
+    plan_usage_monthly::reported_domestic_bytes AS reported_domestic_bytes,
+    plan_usage_monthly::reported_roaming_bytes AS reported_roaming_bytes,
+    (plan_usage_monthly::reported_lte_bytes > 0 AND selected_devices::max_network_capability == 'LTE' ? 1 : 0) AS reported_lte_bytes,
+    fact_udfs.count_roaming_days(plan_usage_monthly::bitwise_roaming_days) AS roaming_days;
 
+device_usage_g = GROUP device_usage BY (country_code, operator_name, platform, device_type, max_network_capability);
+device_usage_agg = FOREACH device_usage_g {
+    GENERATE FLATTEN(group) AS (country_code, operator_name, platform, device_type, max_network_capability),
+    SUM(device_usage.domestic_mobile_bytes) AS domestic_mobile_bytes,
+    SUM(device_usage.domestic_lte_bytes) AS domestic_lte_bytes,
+    SUM(device_usage.domestic_wifi_bytes) AS domestic_wifi_bytes,
+    SUM(device_usage.roaming_mobile_bytes) AS roaming_mobile_bytes,
+    SUM(device_usage.roaming_wifi_bytes) AS roaming_wifi_bytes,
+    SUM(device_usage.reported_domestic_mobile_bytes) AS domestic_mobile_users,
+    SUM(device_usage.reported_domestic_wifi_bytes) AS domestic_wifi_users,
+    SUM(device_usage.reported_domestic_bytes) AS domestic_users,
+    SUM(device_usage.reported_roaming_bytes) AS roaming_users,
+    SUM(device_usage.reported_lte_bytes) AS lte_users,
+    SUM(device_usage.roaming_days) AS roaming_days,
+    COUNT(device_usage.guid_key + 1) AS total_users;
+}    
+    
+    capi_ingest = LOAD ###IOS_CAPI_PRE_INGEST_LOG_F:$load_days:$load_date###;
+capi_ingest = FILTER capi_ingest BY infid < 8;
+capi_ingest = FOREACH capi_ingest GENERATE guid, sdk_publisher_id, connection_start_at, UPPER(iso_country_code) AS country;
+ingest_data = FILTER capi_ingest BY ToString(ToDate(connection_start_at), 'YYYY-MM-dd') >= '$start_date' AND ToString(ToDate(connection_start_at), 'YYYY-MM-dd') <= '$date';
+ingest_data = FOREACH ingest_data GENERATE guid,
+    sdk_publisher_id,
+    country,
+    ToString(ToDate(connection_start_at), 'YYYY-MM-dd') AS date,
+    connection_start_at;
+result = FOREACH (GROUP ingest_data BY (guid, date)) {
+    r = TOP(1, 4, ingest_data);
+    GENERATE FLATTEN(r) AS (guid, sdk_publisher_id, country, date, connection_start_at);
+}
+
+result = FOREACH result GENERATE date, guid, sdk_publisher_id, country;
+STORE result INTO ###MDM_CAPI_GUID_COUNTRY_O###;
+            """
 
     #program = remove_comments(program)
 
@@ -78,7 +126,7 @@ STORE total_downloads INTO ###APP_TOTAL_DOWNLOADS_I|range_type=MONTH###;
     exec_context.schema_root = "/Users/xiaoli/IdeaProjects/aardvark-analyze/statistics/usage//schema/definitions/"
     print program.to_spark(exec_context)
 
-    print "%s" % exec_context.relation_map
+    #print "%s" % exec_context.relation_map
 
 main()
 

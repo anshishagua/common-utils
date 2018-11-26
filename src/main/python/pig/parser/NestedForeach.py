@@ -1,4 +1,9 @@
 from Node import Node
+from Group import Group
+from Assign import Assign
+from Flatten import Flatten
+from SimpleRelation import SimpleRelation
+from Aggregation import Aggregation
 
 
 class NestedForeach(Node):
@@ -8,15 +13,65 @@ class NestedForeach(Node):
 		self.generate_items = generate_items
 		self.fields = []
 		self.type = "NESTED_FOREACH"
+		self.spark_code = []
 
+	def is_relation_op(self):
+		return True
 
 	def __str__(self):
 		return "FOREACH:%s = for %s, generate:%s" % (self.target, self.src, ", ".join(map(str, self.genItems)))
 
 	def to_spark(self, exec_context):
+		target = exec_context.params["target"].to_spark(exec_context)
+
+		assert isinstance(self.src.expr, Group)
+		exec_context.params["group_by"] = self.src.expr
+
+		for nested_command in self.nested_commands:
+			assert isinstance(nested_command, Assign)
+			expr = nested_command.children[1]
+
+			if expr.is_relation_op():
+				relation_name = nested_command.children[0].name
+				self.spark_code.append(nested_command.to_spark(exec_context))
+
+				exec_context.relation_map[relation_name] = exec_context.last_relation["fields"]
+				exec_context.last_relation["name"] = relation_name
+			else:
+				pass
+
+			pass
+
 		generate_items = []
 
 		for generate_item in self.generate_items:
-			generate_items.append(generate_item.to_spark(exec_context))
+			if isinstance(generate_item, Flatten):
+				flatten_generate_fields = generate_item.transform()
+				generate_items += flatten_generate_fields
+			else:
+				generate_items.append(generate_item)
 
-		return "%s.select(%s)" % (self.src.to_spark(exec_context), ", ".join(generate_items))
+		items = []
+
+		aggregation_items = []
+		not_aggregation_items = []
+
+		for generate_item in generate_items:
+			items.append(generate_item.to_spark(exec_context))
+
+			if generate_item.contains_aggregation():
+				aggregation_items.append(generate_item.to_spark(exec_context))
+			else:
+				not_aggregation_items.append(generate_item.to_spark(exec_context))
+
+		if exec_context.last_relation.get("name") is not None:
+			src = exec_context.last_relation.get("name")
+		else:
+			src = self.src.expr.relation.to_spark(exec_context)
+
+		if not aggregation_items:
+			self.spark_code.append("%s = %s.select(%s)" % (target, src, ", ".join(not_aggregation_items)))
+		else:
+			self.spark_code.append("%s = %s.groupby(%s).agg(%s)" % (target, src, ", ".join(not_aggregation_items), ", ".join(aggregation_items)))
+
+		return "\n".join(self.spark_code)
