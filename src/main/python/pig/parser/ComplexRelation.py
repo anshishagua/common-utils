@@ -6,6 +6,7 @@ class ComplexRelation(Node):
         self.expr = expr
         self.type = "COMPLEX_RELATION"
         self.fields = []
+        self.children = [expr]
 
     def __str__(self):
         return "fields: %s, name: %s" % (self.fields, self.name)

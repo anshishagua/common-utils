@@ -6,6 +6,7 @@ class SimpleRelation(Node):
         self.name = name
         self.type = "SIMPLE_RELATION"
         self.fields = fields
+        self.children = []
 
     def is_simple(self):
         return not isinstance(self.expr, Node)

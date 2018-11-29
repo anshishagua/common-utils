@@ -5,7 +5,7 @@ class Assign(Node):
     def __init__(self, target, expr):
         self.target = target
         self.expr = expr
-        self.children = [target, expr]
+        self.children = [expr]
         self.type = "ASSIGN"
 
     def __str__(self):

@@ -11,14 +11,14 @@ class Alias(Node):
         return "ALIAS:name:%s,expr:%s" % (self.name, self.expr)
 
     def to_spark(self, exec_context):
-        filed = self.expr.to_spark(exec_context)
+        field = self.expr.to_spark(exec_context)
 
         if self.expr.type == "STRING":
-            filed = "F.lit(%s)" % (filed)
+            field = "F.lit(%s)" % (field)
 
         alias = self.name
 
         if self.name.type == 'FIELD':
             alias = "'%s'" %(self.name.name)
 
-        return "%s.alias(%s)" % (filed, alias)
+        return "%s.alias(%s)" % (field, alias)

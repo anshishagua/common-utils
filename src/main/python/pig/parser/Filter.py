@@ -10,7 +10,7 @@ class Filter(Node):
         self.relation = None
 
     def __str__(self):
-        return "FILTER:%s=%s by %s" % (self.src, self.target, self.condition)
+        return "FILTER:%s by %s" % (self.src, self.condition)
 
     def to_spark(self, exec_context):
         self.fields = exec_context.relation_map[self.src.name]

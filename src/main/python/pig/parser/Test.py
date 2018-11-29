@@ -205,6 +205,179 @@ android_app_info = FOREACH android_app_info_j GENERATE android_app_info_i::id AS
 
     #program = remove_comments(program)
 
+    program = """
+SET pig.exec.reducers.bytes.per.reducer 500000000;
+SET mapreduce.map.java.opts -Xmx1638m;
+SET mapreduce.map.memory.mb 5120;
+SET mapreduce.reduce.java.opts -Xmx1638m;
+SET mapreduce.reduce.memory.mb 5120;
+SET mapreduce.output.fileoutputformat.compress true;
+SET mapreduce.output.fileoutputformat.compress.codec org.apache.hadoop.io.compress.GzipCodec;
+-- To give up specific reducer output, once Java RE runs into infinite loop in certain spacial case
+SET mapreduce.map.failures.maxpercent 5;
+SET mapreduce.reduce.failures.maxpercent 5;
+SET mapreduce.reduce.speculative false;
+SET mapreduce.reduce.maxattempts 1;
+SET mapreduce.task.timeout 1800000000;
+SET parquet.compression gzip;
+SET mapreduce.fileoutputcommitter.algorithm.version 2;
+
+
+register /usr/lib/pig/lib/jyson-1.0.2.jar;
+register ../../pig_udfs/common_udfs.py USING org.apache.pig.scripting.jython.JythonScriptEngine AS common_udf;
+register ../../pig_udfs/maintenance_udfs.py USING org.apache.pig.scripting.jython.JythonScriptEngine AS maintenance_udf;
+
+DEFINE LongToString InvokeForString('java.lang.String.valueOf', 'Long');
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+capi_log = LOAD ###IOS_CAPI_PRE_INGEST_LOG_F:4###;
+
+
+capi_log = FILTER capi_log BY ToString(ToDate(connection_start_at), 'YYYY-MM-dd') == '$target_date' AND
+                                    ((connection_type == 'APP' AND connection_start_at != 0 AND connection_end_at != 0 AND (input_bytes + output_bytes) != 0) OR
+                                    (connection_type == 'SCREEN' AND (connection_end_at - connection_start_at) <= 3600*1000*4) OR
+                                    (connection_type != 'APP'));
+
+
+capi_log = FILTER capi_log BY
+    (connection_start_at > 0 AND connection_end_at > 0) AND
+    (connection_type IN ('DELETE','PUT','OPTIONS','HEAD','TUNNEL','UDP','POST','SCREEN','APP','GET','BLOCKED','TCP','CONNECT') AND
+    (
+        connection_type == 'TUNNEL' OR
+        (connection_type == 'SCREEN' AND (connection_end_at - connection_start_at) <= 3600*1000*4) OR
+        ((connection_end_at - connection_start_at) <= 3600*1000*2)
+    ) AND
+    (common_udf.is_guid_valid(guid))
+);
+
+capi_log = FOREACH capi_log GENERATE
+                common_udf.gen_fake_bundle_id(remote_server_host, http_uri, http_user_agent, connection_type) AS fake_bundle_id,
+                guid,
+                iso_country_code,
+                latitude,
+                longitude,
+                sdk_publisher_id,
+                sdk_bundle_id,
+                infid,
+                (remote_server_host IS NULL ? '' : remote_server_host) AS remote_server_host,
+                (http_uri IS NULL ? '' : http_uri) AS http_uri,
+                (http_user_agent IS NULL ? '' : http_user_agent) AS http_user_agent,
+                (connection_type IS NULL ? '' : connection_type) AS connection_type,
+                input_bytes,
+                output_bytes,
+                connection_start_at,
+                connection_end_at;
+
+
+fake_id_to_four_key = FOREACH capi_log GENERATE
+                        fake_bundle_id,
+                        remote_server_host,
+                        http_uri,
+                        http_user_agent,
+                        connection_type;
+fake_id_to_four_key = DISTINCT fake_id_to_four_key;                       
+
+
+capi_log = FOREACH capi_log GENERATE
+                guid,
+                iso_country_code,
+                latitude,
+                longitude,
+                sdk_publisher_id,
+                sdk_bundle_id,
+                infid,
+                connection_type,
+                input_bytes,
+                output_bytes,
+                connection_start_at,
+                connection_end_at,
+                fake_bundle_id;
+capi_log = DISTINCT capi_log;
+
+
+
+capi_session = FOREACH(GROUP capi_log BY (guid, iso_country_code, latitude, longitude, sdk_publisher_id, sdk_bundle_id)) {
+               GENERATE FLATTEN(common_udf.capi_session(capi_log)) AS (
+                    guid,
+                    iso_country_code,
+                    latitude,
+                    longitude,
+                    sdk_publisher_id,
+                    sdk_bundle_id,
+                    infid,              -- the most count infid for the fake_bundle_id
+                    session_input_bytes,
+                    session_output_bytes,
+                    session_start_time,
+                    session_end_time,
+                    fake_bundle_id,
+                    request_input_bytes,
+                    request_output_bytes,
+                    request_start_time,
+                    request_end_time,
+                    bundle_count,       -- fake_bundle_id count=1, prepared to be sum in the following process
+                    session_id          -- to specify different sessions
+               );
+}
+
+
+
+capi_session = DISTINCT capi_session;
+
+
+capi_session = FOREACH capi_session GENERATE
+    maintenance_udf.fake_device_id(guid) AS device_id,
+    common_udf.capi_guid_transfer(guid) AS guid,
+    iso_country_code,
+    latitude,
+    longitude,
+    sdk_publisher_id,
+    sdk_bundle_id,
+    infid,
+    fake_bundle_id,
+    session_input_bytes,
+    session_output_bytes,
+    session_start_time,
+    session_end_time,
+    request_input_bytes,
+    request_output_bytes,
+    request_start_time,
+    request_end_time,
+    bundle_count,
+    session_id;
+
+
+capi_session = JOIN capi_session BY fake_bundle_id, fake_id_to_four_key BY fake_bundle_id;
+
+
+capi_session = FOREACH capi_session GENERATE
+                        '$target_date' AS date:chararray,
+                        capi_session::device_id AS device_id:chararray,
+                        capi_session::guid AS guid:chararray,
+                        capi_session::iso_country_code AS iso_country_code:chararray,
+                        capi_session::latitude AS latitude:chararray,
+                        capi_session::longitude AS longitude:chararray,
+                        capi_session::sdk_publisher_id AS sdk_publisher_id:chararray,
+                        capi_session::sdk_bundle_id AS sdk_bundle_id:chararray,
+                        capi_session::infid AS infid:int,
+                        capi_session::session_input_bytes AS session_input_bytes:long,
+                        capi_session::session_output_bytes AS session_output_bytes:long,
+                        capi_session::session_start_time AS session_start_time:long,
+                        capi_session::session_end_time AS session_end_time:long,
+                        capi_session::request_input_bytes AS request_input_bytes:long,
+                        capi_session::request_output_bytes AS request_output_bytes:long,
+                        capi_session::request_start_time AS request_start_time:long,
+                        capi_session::request_end_time AS request_end_time:long,
+                        capi_session::bundle_count AS bundle_count:long,
+                        capi_session::session_id AS session_id:long,
+                        fake_id_to_four_key::remote_server_host AS remote_server_host:chararray,
+                        fake_id_to_four_key::http_uri AS http_uri:chararray,
+                        fake_id_to_four_key::http_user_agent AS http_user_agent:chararray,
+                        fake_id_to_four_key::connection_type AS connection_type:chararray;
+
+STORE capi_session INTO ###MDM_CAPI_SESSION_F|date=$target_date###;
+
+
+    """
+
     input_stream = InputStream(program)
     lexer = PigLexer(input_stream)
     stream = CommonTokenStream(lexer)
@@ -220,6 +393,8 @@ android_app_info = FOREACH android_app_info_j GENERATE android_app_info_i::id AS
     print program.to_spark(exec_context)
 
     #print "%s" % exec_context.relation_map
+
+    print "%s%s" % (111, 222)
 
 main()
 

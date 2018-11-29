@@ -85,11 +85,14 @@ class Load(Node):
         for param in params:
             key = param[1:]
             schema = schema.replace(param, "%s")
-            param_values.append("str(params['%s'])" % (key))
+            param_values.append("params['%s']" % (key))
 
         if param_values:
             schema = "'" + schema + "' % (" + ", ".join(param_values) + ")"
         else:
             schema = "'" + schema + "'"
 
-        return "load_data_to_spark_dataframe(sc, %s, params)" % (schema)
+        if params:
+            return "load_data_to_spark_dataframe(sc, %s, params)" % (schema)
+        else:
+            return "load_data_to_spark_dataframe(sc, %s)" % (schema)

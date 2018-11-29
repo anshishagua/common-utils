@@ -35,10 +35,9 @@ from Boolean import Boolean
 from ConditionCase import ConditionCase
 from ValueCase import ValueCase
 from FieldRange import FieldRange
-from Foreach import Foreach
 from Alias import Alias
 from Join import Join, JoinItem
-from Group import Group, GroupItem
+from Group import Group
 from ComplexRelation import ComplexRelation
 from Assign import Assign
 from Flatten import Flatten
@@ -49,6 +48,9 @@ from Cube import Cube
 from Set import Set
 from SimpleForeach import SimpleForeach
 from NestedForeach import NestedForeach
+from ParamVar import ParamVar
+from Define import Define
+
 
 class PigNewVisitor(PigVisitor):
     # Visit a parse tree produced by PigParser#program.
@@ -107,7 +109,10 @@ class PigNewVisitor(PigVisitor):
 
     # Visit a parse tree produced by PigParser#define_statement.
     def visitDefine_statement(self, ctx):
-        return self.visitChildren(ctx)
+        variable = ctx.IDENTIFIER()
+        expr = self.visit(ctx.func_call())
+
+        return Define(variable, expr)
 
 
     # Visit a parse tree produced by PigParser#split_statement.
@@ -997,7 +1002,13 @@ nested_op : nested_filter
             return Number(float(ctx.DOUBLENUMBER().getText()))
 
         if ctx.QUOTEDSTRING() is not None:
-            return String(ctx.QUOTEDSTRING().getText())
+            value = ctx.QUOTEDSTRING().getText()
+            value = value[1:len(value) - 1]
+
+            if len(value) > 0 and value[0] == "$":
+                return ParamVar(value[1:])
+
+            return String(value)
 
         if ctx.NULL() is not None:
             return Null()

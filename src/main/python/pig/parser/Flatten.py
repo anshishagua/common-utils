@@ -1,5 +1,6 @@
 from Node import Node
 from Function import Function
+from Alias import Alias
 
 
 class Flatten(Node):
@@ -10,15 +11,16 @@ class Flatten(Node):
         self.type = "FLATTEN"
 
     def transform(self):
-        if isinstance(self.expression, Function):
-            return "func"
-        else:
-            generate_items = []
+        generate_items = []
 
+        if isinstance(self.expression, Function):
+            for as_field in self.as_fields:
+                generate_items.append(Alias(as_field, self.expression))
+        else:
             for as_field in self.as_fields:
                 generate_items.append(as_field)
 
-            return generate_items
+        return generate_items
 
     def to_spark(self, exec_context):
         if self.expression.type == 'FIELD':

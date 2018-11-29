@@ -10,6 +10,7 @@ class Split(Node):
         self.conditions = conditions
         self.targets = targets
         self.type = "SPLIT"
+        self.children = [conditions]
 
     def to_spark(self, exec_context):
         targets = []

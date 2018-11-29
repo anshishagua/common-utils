@@ -12,6 +12,7 @@ class SimpleForeach(Node):
 		self.generate_items = generate_items
 		self.fields = []
 		self.type = "SIMPLE_FOREACH"
+		self.children = [src, generate_items]
 
 	def __str__(self):
 		return "FOREACH:%s = for %s, generate:%s" % (self.target, self.src, ", ".join(map(str, self.genItems)))

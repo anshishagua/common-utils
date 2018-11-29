@@ -14,6 +14,7 @@ PIG_SPARK_FUNCTION_MAPPING = {
     "STARTSWITH": "F.instr",
     "REPLACE": "F.regexp_replace",
     "LOWER": "F.lower",
+    "UPPER": "F.upper",
     "TOP": "df_top_elements"
 }
 
@@ -72,11 +73,7 @@ class Function(Node):
             field_index = int(self.args[1].to_spark(exec_context))
             relation = self.args[2].name
 
-            print field_index
-
-            if field_index == 15:
-                pass
-            sort_by_field = exec_context.relation_map[relation][field_index].name
+            sort_by_field = exec_context.relation_map[relation][field_index].to_spark(exec_context)
 
             group_by_fields = ", ".join(["'" + field.name + "'" for field in exec_context.params["group_by"].group_by_fields])
 

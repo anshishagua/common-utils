@@ -25,7 +25,7 @@ class Store(Node):
         for param in params:
             key = param[1:]
             schema = schema.replace(param, "%s")
-            paramValues.append("str(params['%s'])" % (key))
+            paramValues.append("params['%s']" % (key))
 
         if paramValues:
             schema = "'" + schema + "' % (" + ", ".join(paramValues) + ")"

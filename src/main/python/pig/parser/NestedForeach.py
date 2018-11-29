@@ -14,6 +14,7 @@ class NestedForeach(Node):
 		self.generate_items = generate_items
 		self.fields = []
 		self.type = "NESTED_FOREACH"
+		self.children = [src, nested_commands, generate_items]
 		self.spark_code = []
 
 	def is_relation_op(self):
@@ -34,14 +35,18 @@ class NestedForeach(Node):
 
 			if expr.is_relation_op():
 				relation_name = nested_command.children[0].name
-				self.spark_code.append(nested_command.to_spark(exec_context))
+				generated_code = nested_command.to_spark(exec_context)
+
+				if isinstance(generated_code, list):
+					for item in generated_code:
+						self.spark_code.append(item)
+				else:
+					self.spark_code.append(generated_code)
 
 				exec_context.relation_map[relation_name] = exec_context.last_relation["fields"]
 				exec_context.last_relation["name"] = relation_name
 			else:
 				pass
-
-			pass
 
 		generate_items = []
 

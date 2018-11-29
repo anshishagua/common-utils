@@ -6,6 +6,7 @@ class Set(Node):
         self.key = key
         self.value = value
         self.type = "SET"
+        self.children = []
 
     def __str__(self):
         return "[type:%s, key:%s, value:%s]" % (self.type, self.key, self.value)

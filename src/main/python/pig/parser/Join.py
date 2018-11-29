@@ -3,10 +3,13 @@ from Field import Field
 from SimpleRelation import SimpleRelation
 from ComplexRelation import ComplexRelation
 
-class JoinItem(object):
+
+class JoinItem(Node):
     def __init__(self, relation, fields):
         self.relation = relation
         self.fields = fields
+        self.type = "JOIN_ITEM"
+        self.children = [relation, fields]
 
 
 class Join(Node):
@@ -15,6 +18,7 @@ class Join(Node):
         self.join_items = join_items
         self.type = "JOIN"
         self.fields = []
+        self.children = [join_items]
 
     def build_join_condition(self, left_join_item, right_join_item):
         pass

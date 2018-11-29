@@ -7,6 +7,7 @@ class FieldRange(Node):
         self.start = start
         self.end = end
         self.type = "FIELD_RANGE"
+        self.children = []
 
     def __str__(self):
         return "COLUMN_RANGE:start:%d, end:%d" % (self.start, self.end)
