@@ -1,16 +1,11 @@
-from pyspark.sql import *
-from pyspark.sql.types import *
 
-def get():
-	return 1, 2
+input = open("/Users/xiaoli/Downloads/compare_result_details_1126.csv")
+output = open("/Users/xiaoli/Downloads/old_creative_ids.csv", "w")
 
+for line in input:
+	creative_id = line.split(",")[0]
 
-spark = SparkSession.builder.appName("aaa").master("local[*]").getOrCreate()
+	output.write(creative_id + "\n")
 
-rows = [(1, 2, (1, 2))]
-
-struct_type = StructType([StructField("inner_id1", IntegerType()), StructField("inner_id2", IntegerType())])
-struct_type = StructType([StructField("id1", IntegerType()), StructField("id2", IntegerType()), StructField("id3", struct_type)])
-
-df = spark.createDataFrame(rows, struct_type)
-df.select(df.id3.inner_id1).show()
+input.close()
+output.close()

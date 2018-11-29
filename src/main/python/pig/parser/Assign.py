@@ -25,6 +25,18 @@ class Assign(Node):
 
         expr = self.expr.to_spark(exec_context)
 
+        generated_code = []
+
+        if isinstance(expr, list):
+            for i in range(len(expr)):
+                if i != (len(expr) - 1):
+                    generated_code.append(expr[i])
+                else:
+                    generated_code.append("%s = %s" % (target, expr[i]))
+        else:
+            generated_code.append("%s = %s" % (target, expr))
+
         exec_context.relation_map[target] = self.expr.fields
 
-        return "%s = %s" % (target, expr)
+        #return "%s = %s" % (target, expr)
+        return generated_code

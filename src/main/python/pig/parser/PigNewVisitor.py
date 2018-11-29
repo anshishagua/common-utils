@@ -274,7 +274,7 @@ class PigNewVisitor(PigVisitor):
 
             if alias is not None:
                 if alias.type == "CAST":
-                    cast = Cast(alias.toType, arg)
+                    cast = Cast(alias.data_type, arg)
                     return Alias(alias.expression, cast)
                 else:
                     return Alias(alias, arg)

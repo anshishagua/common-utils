@@ -57,7 +57,13 @@ class Program(Node):
                 i += 1
                 continue
 
-            body.append(statement.to_spark(exec_context))
+            generated_code = statement.to_spark(exec_context)
+
+            if isinstance(generated_code, list):
+                for item in generated_code:
+                    body.append(item)
+            else:
+                body.append(generated_code)
 
             i += 1
 

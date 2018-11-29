@@ -111,118 +111,96 @@ STORE result INTO ###MDM_CAPI_GUID_COUNTRY_O###;
             """
 
     program = """
-    SET pig.exec.reducers.max 5000;
-SET pig.exec.reducers.bytes.per.reducer 500000000;
-SET mapreduce.reduce.java.opts -Xmx1638m;
-SET mapreduce.reduce.memory.mb 4096;
-SET mapreduce.output.fileoutputformat.compress true;
-SET mapreduce.output.fileoutputformat.compress.codec org.apache.hadoop.io.compress.GzipCodec;
-REGISTER ../../pig_udfs/mdm_hm_fact_udfs.py USING org.apache.pig.scripting.jython.JythonScriptEngine AS udf_fact;
+/*
+ * Copyright (c) 2015 App Annie Inc. All rights reserved.
+ */
+/**
+Installed user base
+**/
 
--- LOAD 15 days of the FACT APP INSTALL
-fact_app_install = LOAD ###HM_STAGE_FACT_APP_INSTALL_F:4###;
---DESCRIBE fact_app_install;
 
--- we are interested in deduping a daily timeperiod, marked as 00, that is:
--- * 4 days from the upper boundary of the time window
--- * 10 days from the lower boundary of the time window
--- -10 -09 -08 -07 -06 -05 -04 -03 -02 -01 00 +01 +02 +03 +04
 
--- procssing NOTE: utc_date_key is in yyyyMMdd format
-fact_app_install = FILTER fact_app_install BY utc_date_key > 0 AND ToDate((chararray) utc_date_key, 'yyyyMMdd') == ToDate('$target_date', 'yyyy-MM-dd');
-fact_app_install = FOREACH fact_app_install GENERATE utc_date_key,
-                                                     utc_time_key,
-                                                     local_date_key,
-                                                     local_time_key,
-                                                     package,
-                                                     guid,
-                                                     product_key,
-                                                     sim_operator_key,
-                                                     device_key,
-                                                     0L AS plan_key,
-                                                     event_id AS appeventid,
-                                                     os_version,
-                                                     0L AS subscriber_key,
-                                                     '' AS transformed_at,
-                                                     agent_receive_date AS agent_received_at,
-                                                     is_bad_product,
-                                                     is_bad_os_version,
-                                                     app_install_source,
-                                                     app_version
-                                                     ;
+ios_app_info_i = LOAD ###IOS_APP_INFO_I###;
+android_app_info_i = LOAD ###ANDROID_APP_INFO_I###;
 
-dim_guid = LOAD ###MDM_DIM_GUID_D###;
-dim_guid = FOREACH dim_guid GENERATE guid, guid_key, latest_os_version, latest_device_key;
+ios_country_mapping = LOAD ###IOS_COUNTRY_MAPPING_D###;
+android_country_mapping = LOAD ###ANDROID_COUNTRY_MAPPING_D###;
 
-fact_app_install = JOIN fact_app_install BY guid, dim_guid BY guid USING 'skewed';
-fact_app_install = FOREACH fact_app_install GENERATE
-                     fact_app_install::utc_date_key AS utc_date_key,
-                     fact_app_install::utc_time_key AS utc_time_key,
-                     fact_app_install::local_date_key AS local_date_key,
-                     fact_app_install::local_time_key AS local_time_key,
-                     fact_app_install::package AS package,
-                     dim_guid::guid_key AS guid_key,
-                     fact_app_install::product_key AS product_key,
-                     fact_app_install::sim_operator_key AS sim_operator_key,
-                     (dim_guid::latest_device_key IS NOT NULL ? (long)dim_guid::latest_device_key : (long)fact_app_install::device_key) AS device_key,
-                     fact_app_install::plan_key AS plan_key,
-                     fact_app_install::appeventid AS appeventid,
-                     (dim_guid::latest_os_version IS NOT NULL ? dim_guid::latest_os_version : fact_app_install::os_version) AS os_version,
-                     fact_app_install::subscriber_key AS subscriber_key,
-                     fact_app_install::transformed_at AS transformed_at,
-                     fact_app_install::agent_received_at AS agent_received_at,
-                     fact_app_install::is_bad_product AS is_bad_product,
-                     fact_app_install::is_bad_os_version AS is_bad_os_version,
-                     fact_app_install::app_install_source AS app_install_source,
-                     fact_app_install::app_version AS app_version
-                     ;
+ios_app_info_j = JOIN ios_app_info_i BY country_id, ios_country_mapping BY country_id;
+ios_app_info = FOREACH ios_app_info_j GENERATE ios_app_info_i::id AS app_id,
+    'iOS' AS platform,
+    (ios_app_info_i::bundle_id == 'com.apple.mobilemaps' ? 'com.apple.Maps' : ios_app_info_i::bundle_id) AS bundle_id,
+    -- ios_app_info_i::bundle_id AS bundle_id,
+    ios_app_info_i::version AS version,
+    ios_country_mapping::country_code AS country_code,
+    ios_app_info_i::category_id AS primary_category_id,
+    ios_app_info_i::publisher_id AS publisher_id,
+    ios_app_info_i::release_date AS release_date;
 
-fact_app_install = FOREACH fact_app_install GENERATE
-                     utc_date_key,
-                     utc_time_key,
-                     local_date_key,
-                     local_time_key,
-                     package,
-                     guid_key,
-                     product_key,
-                     sim_operator_key,
-                     device_key,
-                     plan_key,
-                     appeventid,
-                     os_version,
-                     subscriber_key,
-                     transformed_at,
-                     udf_fact.bad_record_key(is_bad_product, is_bad_os_version) AS bad_record_key,
-                     agent_received_at,
-                     app_install_source,
-                     app_version
-                     ;
 
-fact_app_install = FOREACH(GROUP fact_app_install BY (utc_date_key, utc_time_key, local_date_key, local_time_key, guid_key, os_version, sim_operator_key, device_key, package, appeventid) PARALLEL 800){
-                     t = TOP(1, 15, fact_app_install);
-                     GENERATE FLATTEN(t) AS (
-                         utc_date_key,
-                         utc_time_key,
-                         local_date_key,
-                         local_time_key,
-                         package,
-                         guid_key,
-                         product_key,
-                         sim_operator_key,
-                         device_key,
-                         plan_key,
-                         appeventid,
-                         os_version,
-                         subscriber_key,
-                         transformed_at,
-                         bad_record_key,
-                         agent_received_at,
-                         app_install_source,
-                         app_version
-                     );
-}
-STORE fact_app_install INTO ###HM_EDW_FACT_APP_INSTALL_F|date=$target_date###;
+android_app_info_j = JOIN android_app_info_i BY country_id LEFT, android_country_mapping BY country_id;
+android_app_info = FOREACH android_app_info_j GENERATE android_app_info_i::id AS app_id,
+    'Android' AS platform,
+    android_app_info_i::bundle_id AS bundle_id,
+    android_app_info_i::version AS version,
+    -- for china android many country code would be null on pg database side. fix manually here
+    (android_country_mapping::country_code is NULL ? 'CN' : android_country_mapping::country_code) AS country_code,
+    android_app_info_i::category_id AS primary_category_id,
+    android_app_info_i::publisher_id AS publisher_id,
+    android_app_info_i::release_date AS release_date;
 
+app_info = UNION ios_app_info, android_app_info;
+app_info = DISTINCT app_info;
+
+STORE app_info INTO ###APP_INFO_D###;
+
+
+ios_app_name_i = LOAD ###IOS_APP_NAME_I###;
+ios_app_name_o = FOREACH ios_app_name_i GENERATE app_id, app_name, 'iOS' AS platform;
+android_app_name_i = LOAD ###ANDROID_APP_NAME_I###;
+android_app_name_o = FOREACH android_app_name_i GENERATE app_id, app_name, 'Android' AS platform;
+app_name = UNION ios_app_name_o, android_app_name_o;
+STORE app_name INTO ###APP_NAME_D###;
+
+ios_category_mapping_i = LOAD ###IOS_CATEGORY_MAPPING_I###;
+ios_category_mapping_o = FOREACH ios_category_mapping_i GENERATE category_id, category_name, 'iOS' AS platform, parent_id;
+android_category_mapping_i = LOAD ###ANDROID_CATEGORY_MAPPING_I###;
+android_category_mapping_o = FOREACH android_category_mapping_i GENERATE category_id, category_name, 'Android' AS platform, parent_id;
+app_category = UNION ios_category_mapping_o, android_category_mapping_o;
+
+parent_category = FOREACH app_category GENERATE *;
+
+app_category = FOREACH (JOIN app_category BY (platform, parent_id) LEFT, parent_category BY (platform, category_id)) GENERATE
+    app_category::category_id AS category_id,
+    app_category::category_name AS category_name,
+    app_category::platform AS platform,
+    parent_category::category_name AS parent_category,
+    parent_category::category_id AS parent_category_id;
+
+STORE app_category INTO ###APP_CATEGORY_MAPPING_D###;
+
+
+ios_app_publihser = LOAD ###IOS_APP_PUBLISHER_I###;
+android_app_publihser = LOAD ###ANDROID_APP_PUBLISHER_I###;
+
+ios_app_publihser = FOREACH ios_app_publihser GENERATE publisher_id, 'iOS' AS platform, publisher_name;
+android_app_publihser = FOREACH android_app_publihser GENERATE publisher_id, 'Android' AS platform, publisher_name;
+
+app_publisher =  UNION ios_app_publihser, android_app_publihser;
+STORE app_publisher INTO ###APP_PUBLISHER_MAPPING_D###;
+selected_devices = LOAD ###MDM_OPERATOR_SELECTED_DEVICE_I###;
+plan_usage_monthly = LOAD ###MDM_OPERATOR_MATRIX_PLAN_USAGE_MONTHLY_I###;
+
+device_usage_j = JOIN selected_devices BY guid_key, plan_usage_monthly BY guid_key;
+android_app_info = FOREACH android_app_info_j GENERATE android_app_info_i::id AS app_id,
+    'Android' AS platform,
+    android_app_info_i::bundle_id AS bundle_id,
+    android_app_info_i::version AS version,
+    -- for china android many country code would be null on pg database side. fix manually here
+    (android_country_mapping::country_code is NULL ? 'CN' : android_country_mapping::country_code) AS country_code,
+    android_app_info_i::category_id AS primary_category_id,
+    android_app_info_i::publisher_id AS publisher_id,
+    android_app_info_i::release_date AS release_date;
     """
 
     #program = remove_comments(program)

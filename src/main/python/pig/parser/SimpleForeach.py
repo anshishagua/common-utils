@@ -1,6 +1,9 @@
 from Node import Node
 from FieldRange import FieldRange
 from Field import Field, ALL_FIELD
+from ComplexRelation import ComplexRelation
+from SimpleRelation import SimpleRelation
+from Assign import Assign
 
 
 class SimpleForeach(Node):
@@ -15,6 +18,14 @@ class SimpleForeach(Node):
 
 	def to_spark(self, exec_context):
 		generate_items = []
+
+		source_code = []
+
+		if isinstance(self.src, ComplexRelation):
+			temp_table_name = "temp_table"
+			statement = Assign(SimpleRelation(temp_table_name), self.src)
+			source_code.append(statement.to_spark(exec_context))
+			self.src = SimpleRelation(temp_table_name)
 
 		exec_context.params["relation_name"] = self.src.name
 		for generate_item in self.generate_items:
@@ -38,4 +49,6 @@ class SimpleForeach(Node):
 				else:
 					self.fields.append(generate_item.name)
 
-		return "%s.select(%s)" % (self.src.to_spark(exec_context), ", ".join(generate_items))
+		source_code.append("%s.select(%s)" % (self.src.to_spark(exec_context), ", ".join(generate_items)))
+
+		return source_code
