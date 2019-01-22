@@ -1,11 +1,19 @@
+import pyspark.sql.functions as F
+from pyspark.sql.session import SparkSession
 
-input = open("/Users/xiaoli/Downloads/compare_result_details_1126.csv")
-output = open("/Users/xiaoli/Downloads/old_creative_ids.csv", "w")
+sc = SparkSession.builder.getOrCreate()
 
-for line in input:
-	creative_id = line.split(",")[0]
 
-	output.write(creative_id + "\n")
+params = {
+	"date": "2019-01-08"
+}
 
-input.close()
-output.close()
+df = load_data_to_spark_dataframe(sc, "CAPI_APP_REQUESTS_F", params)
+df = df.filter((F.instr(F.lower(F.col("remote_server_host")), "inmobi.com") > 0))
+
+df = df.groupby("bundle_id").agg(F.count("bundle_id").alias("count"))
+
+df = df.orderBy(F.col("count").desc())
+
+#print df.count()
+df.show(20, False)

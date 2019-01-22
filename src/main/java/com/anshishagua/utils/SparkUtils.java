@@ -21,7 +21,12 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.expressions.Window;
+import org.apache.spark.sql.expressions.WindowSpec;
+import org.apache.spark.sql.functions;
+import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
 import java.io.FileInputStream;
@@ -35,11 +40,112 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 public class SparkUtils {
     public static final int DEFAULT_NUM_PARTITION = 5;
+    public static final int DEFAULT_TOP_N = 1;
+
+    public static Row genRow(StructType structType) {
+        Object [] values = new Object[structType.fields().length];
+
+        for (int i = 0; i < values.length; ++i) {
+            StructField field = structType.fields()[i];
+
+            DataType dataType = field.dataType();
+
+
+        }
+
+        return RowFactory.create(values);
+    }
+
+    public static Dataset<Row> joinDataFrame(List<Dataset<Row>> datasets, List<String> joinCloumns) {
+        return joinDataFrame(datasets, joinCloumns, JoinType.INNER);
+    }
+
+    public static Dataset<Row> joinDataFrame(List<Dataset<Row>> datasets, List<String> joinCloumns, JoinType joinType) {
+        Objects.requireNonNull(datasets);
+
+        Dataset<Row> result = null;
+
+        for (Dataset<Row> dataset : datasets) {
+            if (dataset == null) {
+                result = dataset;
+            } else {
+                result = joinDataFrame(result, dataset, joinCloumns, joinType);
+            }
+        }
+
+        return result;
+    }
+
+    public static Dataset<Row> joinDataFrame(Dataset<Row> a, Dataset<Row> b, List<String> joinColumns) {
+        return joinDataFrame(a, b, joinColumns, JoinType.INNER);
+    }
+
+    public static Dataset<Row> joinDataFrame(Dataset<Row> a, Dataset<Row> b, List<String> joinColumns, JoinType joinType) {
+        Objects.requireNonNull(a);
+        Objects.requireNonNull(b);
+        Objects.requireNonNull(joinColumns);
+
+        Set<String> joinColumnSet = new HashSet<>(joinColumns);
+
+        Set<String> aColumnSet = new HashSet<>(Arrays.asList(a.columns()));
+        Set<String> bColumnSet = new HashSet<>(Arrays.asList(b.columns()));
+
+        aColumnSet.removeAll(joinColumnSet);
+        bColumnSet.removeAll(joinColumnSet);
+
+        aColumnSet.retainAll(bColumnSet);
+
+        if (!aColumnSet.isEmpty()) {
+            throw new IllegalArgumentException("Column name conflict(s) detected: " + aColumnSet);
+        }
+
+        aColumnSet = new HashSet<>(Arrays.asList(a.columns()));
+        aColumnSet.removeAll(joinColumnSet);
+        bColumnSet = new HashSet<>(Arrays.asList(b.columns()));
+        bColumnSet.removeAll(joinColumnSet);
+
+        Column condition = null;
+
+        for (String joinColumn : joinColumns) {
+            Column column = a.col(joinColumn).equalTo(b.col(joinColumn));
+
+            if (condition == null) {
+                condition = column;
+            } else {
+                condition = condition.and(column);
+            }
+        }
+
+        Dataset<Row> dataset = a.join(b, condition, joinType.getValue());
+
+        List<Column> selectColumns = new ArrayList<>();
+
+        for (String columnName : aColumnSet) {
+            selectColumns.add(a.col(columnName).alias(columnName));
+        }
+
+        for (String columnName : bColumnSet) {
+            selectColumns.add(b.col(columnName).alias(columnName));
+        }
+
+        for (String joinColumnName : joinColumnSet) {
+            Column column = functions
+                    .when(a.col(joinColumnName).isNotNull(), a.col(joinColumnName))
+                    .otherwise(b.col(joinColumnName))
+                    .alias(joinColumnName);
+
+            selectColumns.add(column);
+        }
+
+        dataset.show();
+        return dataset.select(selectColumns.toArray(new Column[0]));
+    }
 
     /*
     public static Dataset<Row> join(List<Dataset<Row>> datasets, List<String> joinColumns) {
@@ -282,11 +388,63 @@ public class SparkUtils {
         }
     }
 
+    public static DataType parseDataType(String type) {
+        switch (type) {
+            case "long":
+                return DataTypes.LongType;
+            case "int":
+                return DataTypes.IntegerType;
+            case "boolean":
+                return DataTypes.BooleanType;
+            case "short":
+                return DataTypes.ShortType;
+            default:
+                return DataTypes.StringType;
+        }
+    }
+
+    public static StructType parseStructType(String string) {
+        List<StructField> fields = new ArrayList<>();
+
+        for (String field : string.split(",")) {
+            String name = field.split(":")[0];
+            String type = field.split(":")[1];
+
+            fields.add(DataTypes.createStructField(name, parseDataType(type), false));
+        }
+
+        return DataTypes.createStructType(fields);
+    }
+
+    public static Dataset<Row> topElements(Dataset<Row> dataset, List<Column> groupByColumns, List<Column> sortByColumns) {
+        return topElements(dataset, groupByColumns, sortByColumns, DEFAULT_TOP_N);
+    }
+
+    public static Dataset<Row> topElements(Dataset<Row> dataset, List<Column> groupByColumns, List<Column> sortByColumns, int topN) {
+        WindowSpec windowSpec = Window.partitionBy(groupByColumns.toArray(new Column[0]))
+                .orderBy(sortByColumns.toArray(new Column[0]));
+
+        Dataset<Row> result = dataset.withColumn("rank", functions.row_number().over(windowSpec));
+        result = result.filter(functions.col("rank").leq(topN));
+        result = result.drop("rank");
+
+        return result;
+    }
+
     public static void main2(String [] args) throws Exception {
         SparkSession spark = SparkSession.builder().appName("hello").master("local[*]").getOrCreate();
 
         String schemaFile = "/Users/lixiao/code/common-utils/src/main/resources/user_info/schema.json";
 
+        String file = "/Users/xiaoli/IdeaProjects/common-utils/src/main/resources/basic_info.csv";
+
+        List<StructField> structFields = new ArrayList<>();
+        structFields.add(DataTypes.createStructField("id", DataTypes.LongType, false));
+        structFields.add(DataTypes.createStructField("name", DataTypes.StringType, false));
+        structFields.add(DataTypes.createStructField("age", DataTypes.IntegerType, false));
+
+        StructType structType = DataTypes.createStructType(structFields);
+        Dataset<Row> dataset = spark.read().schema(structType).csv(file);
         Schema schema = Schema.load(new FileInputStream(schemaFile));
         Map<String, String> map = new HashMap<>();
         map.put("date", "2018-09-10");

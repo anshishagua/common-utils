@@ -2,6 +2,7 @@ package com.anshishagua.service;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.pig.impl.PigContext;
 import org.apache.spark.SparkConf;
 import org.apache.spark.deploy.SparkSubmit;
 import org.apache.spark.deploy.yarn.Client;
@@ -30,5 +31,7 @@ public class YarnService {
         client.run();
 
         //System.out.println(applicationId.toString());
+
+        PigContext pigContext;
     }
 }

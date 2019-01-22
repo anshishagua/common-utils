@@ -208,9 +208,9 @@ android_app_info = FOREACH android_app_info_j GENERATE android_app_info_i::id AS
     program = """
 SET pig.exec.reducers.bytes.per.reducer 500000000;
 SET mapreduce.map.java.opts -Xmx1638m;
-SET mapreduce.map.memory.mb 5120;
+SET mapreduce.map.memory.mb 2048;
 SET mapreduce.reduce.java.opts -Xmx1638m;
-SET mapreduce.reduce.memory.mb 5120;
+SET mapreduce.reduce.memory.mb 2048;
 SET mapreduce.output.fileoutputformat.compress true;
 SET mapreduce.output.fileoutputformat.compress.codec org.apache.hadoop.io.compress.GzipCodec;
 -- To give up specific reducer output, once Java RE runs into infinite loop in certain spacial case
@@ -223,157 +223,120 @@ SET parquet.compression gzip;
 SET mapreduce.fileoutputcommitter.algorithm.version 2;
 
 
-register /usr/lib/pig/lib/jyson-1.0.2.jar;
+register ../../java/target/usage-business-snapshot-1.0.jar;
 register ../../pig_udfs/common_udfs.py USING org.apache.pig.scripting.jython.JythonScriptEngine AS common_udf;
-register ../../pig_udfs/maintenance_udfs.py USING org.apache.pig.scripting.jython.JythonScriptEngine AS maintenance_udf;
+DEFINE length org.apache.pig.piggybank.evaluation.string.LENGTH();
+--DEFINE http_dpi_ingest usage.capi.udf.CapiDataIngest('$bucket', 'interface/VPN_HTTP_DPI_RULES/unload', 'HTTP');
+--DEFINE nonhttp_dpi_ingest usage.capi.udf.CapiDataIngest('$bucket', 'interface/VPN_NONHTTP_DPI_RULES/unload', 'NONHTTP');
 
-DEFINE LongToString InvokeForString('java.lang.String.valueOf', 'Long');
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-capi_log = LOAD ###IOS_CAPI_PRE_INGEST_LOG_F:4###;
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- capi_raw = LOAD ###CAPI_LOG_NEW_I|hour=*###;
+capi_raw = LOAD ###CAPI_LOG_I|hour=*###;
 
+capi_log = FOREACH capi_raw GENERATE  guid,
+                                      iso_country_code,
+                                      latitude,
+                                      longitude,
+                                      sdk_publisher_id,
+                                      sdk_bundle_id,
+                                      (connection_type IS NULL ? '' : connection_type) AS connection_type,
+                                      infid,
+                                      remote_server_port,
+                                      FLATTEN(TOKENIZE(remote_server_host, ' ')) AS remote_server_host,
+                                      ((length(http_user_agent) > 1000 OR http_user_agent IS NULL) ? '' : http_user_agent) AS http_user_agent,
+                                      http_refer,
+                                      ((length(http_uri) > 1000 OR http_uri IS NULL) ? '' : http_uri) AS http_uri,
+                                      input_bytes,
+                                      output_bytes,
+                                      transformed_at,
+                                      connection_start_at,
+                                      connection_end_at,
+                                      app_identifier,
+                                      sdk_version,
+                                      os_version,
+                                      app_version;
 
-capi_log = FILTER capi_log BY ToString(ToDate(connection_start_at), 'YYYY-MM-dd') == '$target_date' AND
-                                    ((connection_type == 'APP' AND connection_start_at != 0 AND connection_end_at != 0 AND (input_bytes + output_bytes) != 0) OR
-                                    (connection_type == 'SCREEN' AND (connection_end_at - connection_start_at) <= 3600*1000*4) OR
-                                    (connection_type != 'APP'));
+capi_log = FOREACH capi_log GENERATE  guid,
+                                      iso_country_code,
+                                      latitude,
+                                      longitude,
+                                      sdk_publisher_id,
+                                      sdk_bundle_id,
+                                      connection_type,
+                                      infid,
+                                      remote_server_port,
+                                      (remote_server_host IS NULL ? '' : remote_server_host) AS remote_server_host,
+                                      http_user_agent,
+                                      http_refer,
+                                      http_uri,
+                                      input_bytes,
+                                      output_bytes,
+                                      transformed_at,
+                                      connection_start_at,
+                                      connection_end_at,
+                                      app_identifier,
+                                      sdk_version,
+                                      os_version,
+                                      app_version;
 
+capi_log = FOREACH(
+                    GROUP capi_log BY (
+                                      guid,
+                                      iso_country_code,
+                                      latitude,
+                                      longitude,
+                                      sdk_publisher_id,
+                                      sdk_bundle_id,
+                                      connection_type,
+                                      infid,
+                                      remote_server_port,
+                                      remote_server_host,
+                                      http_user_agent,
+                                      http_refer,
+                                      http_uri,
+                                      input_bytes,
+                                      output_bytes,
+                                      connection_start_at,
+                                      connection_end_at,
+                                      app_identifier,
+                                      sdk_version,
+                                      os_version,
+                                      app_version
+                                      )
+                  )
+          GENERATE FLATTEN(group) AS (
+                                      guid:chararray,
+                                      iso_country_code:chararray,
+                                      latitude:chararray,
+                                      longitude:chararray,
+                                      sdk_publisher_id:chararray,
+                                      sdk_bundle_id:chararray,
+                                      connection_type:chararray,
+                                      infid:int,
+                                      remote_server_port:chararray,
+                                      remote_server_host:chararray,
+                                      http_user_agent:chararray,
+                                      http_refer:chararray,
+                                      http_uri:chararray,
+                                      input_bytes:long,
+                                      output_bytes:long,
+                                      connection_start_at:long,
+                                      connection_end_at:long,
+                                      app_identifier:chararray,
+                                      sdk_version:chararray,
+                                      os_version:chararray,
+                                      app_version:chararray
+                                      ),
+                                      MIN(capi_log.transformed_at) AS transformed_at:long,
+                                      '$date' AS date:chararray;
 
-capi_log = FILTER capi_log BY
-    (connection_start_at > 0 AND connection_end_at > 0) AND
-    (connection_type IN ('DELETE','PUT','OPTIONS','HEAD','TUNNEL','UDP','POST','SCREEN','APP','GET','BLOCKED','TCP','CONNECT') AND
-    (
-        connection_type == 'TUNNEL' OR
-        (connection_type == 'SCREEN' AND (connection_end_at - connection_start_at) <= 3600*1000*4) OR
-        ((connection_end_at - connection_start_at) <= 3600*1000*2)
-    ) AND
-    (common_udf.is_guid_valid(guid))
-);
+SPLIT capi_log INTO ios_capi_log IF os_version IS NULL OR STARTSWITH(os_version, 'iOS'), non_ios_capi_log OTHERWISE;
+SPLIT non_ios_capi_log INTO android_capi_log IF STARTSWITH(os_version, 'Android'), unknown_platform_capi_log OTHERWISE;
 
-capi_log = FOREACH capi_log GENERATE
-                common_udf.gen_fake_bundle_id(remote_server_host, http_uri, http_user_agent, connection_type) AS fake_bundle_id,
-                guid,
-                iso_country_code,
-                latitude,
-                longitude,
-                sdk_publisher_id,
-                sdk_bundle_id,
-                infid,
-                (remote_server_host IS NULL ? '' : remote_server_host) AS remote_server_host,
-                (http_uri IS NULL ? '' : http_uri) AS http_uri,
-                (http_user_agent IS NULL ? '' : http_user_agent) AS http_user_agent,
-                (connection_type IS NULL ? '' : connection_type) AS connection_type,
-                input_bytes,
-                output_bytes,
-                connection_start_at,
-                connection_end_at;
+STORE ios_capi_log INTO ###IOS_CAPI_PRE_INGEST_LOG_F###;
+STORE android_capi_log INTO ###ANDROID_CAPI_PRE_INGEST_LOG_F###;
+STORE unknown_platform_capi_log INTO ###UNKNOWN_PLATFORM_CAPI_PRE_INGEST_LOG_F###;
 
-
-fake_id_to_four_key = FOREACH capi_log GENERATE
-                        fake_bundle_id,
-                        remote_server_host,
-                        http_uri,
-                        http_user_agent,
-                        connection_type;
-fake_id_to_four_key = DISTINCT fake_id_to_four_key;                       
-
-
-capi_log = FOREACH capi_log GENERATE
-                guid,
-                iso_country_code,
-                latitude,
-                longitude,
-                sdk_publisher_id,
-                sdk_bundle_id,
-                infid,
-                connection_type,
-                input_bytes,
-                output_bytes,
-                connection_start_at,
-                connection_end_at,
-                fake_bundle_id;
-capi_log = DISTINCT capi_log;
-
-
-
-capi_session = FOREACH(GROUP capi_log BY (guid, iso_country_code, latitude, longitude, sdk_publisher_id, sdk_bundle_id)) {
-               GENERATE FLATTEN(common_udf.capi_session(capi_log)) AS (
-                    guid,
-                    iso_country_code,
-                    latitude,
-                    longitude,
-                    sdk_publisher_id,
-                    sdk_bundle_id,
-                    infid,              -- the most count infid for the fake_bundle_id
-                    session_input_bytes,
-                    session_output_bytes,
-                    session_start_time,
-                    session_end_time,
-                    fake_bundle_id,
-                    request_input_bytes,
-                    request_output_bytes,
-                    request_start_time,
-                    request_end_time,
-                    bundle_count,       -- fake_bundle_id count=1, prepared to be sum in the following process
-                    session_id          -- to specify different sessions
-               );
-}
-
-
-
-capi_session = DISTINCT capi_session;
-
-
-capi_session = FOREACH capi_session GENERATE
-    maintenance_udf.fake_device_id(guid) AS device_id,
-    common_udf.capi_guid_transfer(guid) AS guid,
-    iso_country_code,
-    latitude,
-    longitude,
-    sdk_publisher_id,
-    sdk_bundle_id,
-    infid,
-    fake_bundle_id,
-    session_input_bytes,
-    session_output_bytes,
-    session_start_time,
-    session_end_time,
-    request_input_bytes,
-    request_output_bytes,
-    request_start_time,
-    request_end_time,
-    bundle_count,
-    session_id;
-
-
-capi_session = JOIN capi_session BY fake_bundle_id, fake_id_to_four_key BY fake_bundle_id;
-
-
-capi_session = FOREACH capi_session GENERATE
-                        '$target_date' AS date:chararray,
-                        capi_session::device_id AS device_id:chararray,
-                        capi_session::guid AS guid:chararray,
-                        capi_session::iso_country_code AS iso_country_code:chararray,
-                        capi_session::latitude AS latitude:chararray,
-                        capi_session::longitude AS longitude:chararray,
-                        capi_session::sdk_publisher_id AS sdk_publisher_id:chararray,
-                        capi_session::sdk_bundle_id AS sdk_bundle_id:chararray,
-                        capi_session::infid AS infid:int,
-                        capi_session::session_input_bytes AS session_input_bytes:long,
-                        capi_session::session_output_bytes AS session_output_bytes:long,
-                        capi_session::session_start_time AS session_start_time:long,
-                        capi_session::session_end_time AS session_end_time:long,
-                        capi_session::request_input_bytes AS request_input_bytes:long,
-                        capi_session::request_output_bytes AS request_output_bytes:long,
-                        capi_session::request_start_time AS request_start_time:long,
-                        capi_session::request_end_time AS request_end_time:long,
-                        capi_session::bundle_count AS bundle_count:long,
-                        capi_session::session_id AS session_id:long,
-                        fake_id_to_four_key::remote_server_host AS remote_server_host:chararray,
-                        fake_id_to_four_key::http_uri AS http_uri:chararray,
-                        fake_id_to_four_key::http_user_agent AS http_user_agent:chararray,
-                        fake_id_to_four_key::connection_type AS connection_type:chararray;
-
-STORE capi_session INTO ###MDM_CAPI_SESSION_F|date=$target_date###;
 
 
     """

@@ -4,6 +4,7 @@ from Field import Field, ALL_FIELD
 from ComplexRelation import ComplexRelation
 from SimpleRelation import SimpleRelation
 from Assign import Assign
+from Flatten import Flatten
 
 
 class SimpleForeach(Node):
@@ -47,6 +48,8 @@ class SimpleForeach(Node):
 
 				if isinstance(generate_item, Field):
 					self.fields.append(generate_item)
+				elif isinstance(generate_item, Flatten):
+					self.fields.append(generate_item.as_fields)
 				else:
 					self.fields.append(generate_item.name)
 

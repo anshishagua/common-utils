@@ -9,7 +9,7 @@ from ComplexRelation import ComplexRelation
 from String import String
 from ParamVar import ParamVar
 from Define import Define
-
+import os
 
 class Program(Node):
     def __init__(self, statements):

@@ -186,6 +186,19 @@
       <artifactId>pig</artifactId>
       <version>0.17.0</version>
     </dependency>
+
+    <dependency>
+      <groupId>org.python</groupId>
+      <artifactId>jython-standalone</artifactId>
+      <version>2.7.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>javax.mail</groupId>
+      <artifactId>mail</artifactId>
+      <version>1.4.7</version>
+    </dependency>
+
   </dependencies>
 
   <build>

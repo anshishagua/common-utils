@@ -15,14 +15,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class Application {
-    public static void main(String [] args) throws Exception {
+    public static void main(String [] args) {
         SpringApplication.run(Application.class, args);
-
-        Pig pig = Pig.compile("aa");
-
-        GruntParser parser;
-        PigServer server;
-
-        LOLoad loLoad;
     }
 }

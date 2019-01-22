@@ -37,7 +37,7 @@ class Function(Node):
 
     def to_spark(self, exec_context):
         name = self.name
-        func_name = name
+        func_name = "F." + name
 
         if "." in func_name:
             module_name = func_name.split(".")[0]
