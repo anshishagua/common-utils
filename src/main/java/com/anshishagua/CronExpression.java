@@ -2,6 +2,7 @@ package com.anshishagua;
 
 import org.springframework.scheduling.support.CronSequenceGenerator;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Date;
@@ -14,6 +15,27 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class CronExpression {
+    public static final int FIELD_SIZE_WITHOUT_YEAR = 6;
+    public static final int FIELD_SIZE_WITH_YEAR = 7;
+
+    public static final int MIN_SECOND = 0;
+    public static final int MAX_SECOND = 59;
+
+    public static final int MIN_MINUTE = 0;
+    public static final int MAX_MINUTE = 59;
+
+    public static final int MIN_HOUR = 0;
+    public static final int MAX_HOUR = 23;
+
+    public static final int MIN_MONTH_DAY = 1;
+    public static final int MAX_MONTH_DAY = 31;
+
+    public static final int MIN_YEAR = 1000;
+    public static final int MAX_YEAR = 9999;
+
+    public static final int MIN_WEEKDAY = 1;
+    public static final int MAX_WEEKDAY = 7;
+
     class ParseException extends Exception {
         public ParseException(String message) {
             super(message);
@@ -105,7 +127,11 @@ public class CronExpression {
     }
 
     private boolean isLeapYear(int year) {
-        return false;
+        return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+    }
+
+    private int getCurrentYear() {
+        return LocalDateTime.now().getYear();
     }
 
     //private Set<Integer> parse
@@ -117,7 +143,7 @@ public class CronExpression {
 
         String [] fields = expression.split(" +");
 
-        if (fields.length != 6 && fields.length != 7) {
+        if (fields.length != FIELD_SIZE_WITHOUT_YEAR && fields.length != FIELD_SIZE_WITH_YEAR) {
             throw new ParseException("");
         }
 
@@ -140,6 +166,20 @@ public class CronExpression {
         } else {
             dates.addAll(parse(dayOfMonthExpr, 0, 31));
         }
+
+        if (fields.length == FIELD_SIZE_WITH_YEAR) {
+            String yearExpr = fields[6];
+
+            years = parse(yearExpr, getCurrentYear(), MAX_YEAR);
+        } else {
+            int [] values = IntStream.range(getCurrentYear(), MAX_YEAR + 1).toArray();
+
+            for (int year : values) {
+                years.add(year);
+            }
+        }
+
+        System.out.println(years);
 
         for (String string : fields) {
             System.out.println(string);
