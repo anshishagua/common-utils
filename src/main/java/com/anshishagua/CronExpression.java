@@ -6,7 +6,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.SortedSet;
@@ -30,11 +32,53 @@ public class CronExpression {
     public static final int MIN_MONTH_DAY = 1;
     public static final int MAX_MONTH_DAY = 31;
 
+    public static final int MIN_MONTH = 1;
+    public static final int MAX_MONTH = 12;
+
     public static final int MIN_YEAR = 1000;
     public static final int MAX_YEAR = 9999;
 
     public static final int MIN_WEEKDAY = 1;
     public static final int MAX_WEEKDAY = 7;
+
+    public static final Map<String, Integer> MONTH_MAP = buildMonthMap();
+    public static final Set<String> MONTH_NAMES = MONTH_MAP.keySet();
+
+    public static final Map<String, Integer> WEEK_MAP = buildWeekMap();
+    public static final Set<String> WEEK_NAMES = WEEK_MAP.keySet();
+
+    private static Map<String, Integer> buildMonthMap() {
+        Map<String, Integer> map = new HashMap<>();
+
+        map.put("JAN", 1);
+        map.put("FEB", 2);
+        map.put("MAR", 3);
+        map.put("APR", 4);
+        map.put("MAY", 5);
+        map.put("JUN", 6);
+        map.put("JUL", 7);
+        map.put("AUG", 8);
+        map.put("SEP", 9);
+        map.put("OCT", 10);
+        map.put("NOV", 11);
+        map.put("DEC", 12);
+
+        return map;
+    }
+
+    private static Map<String, Integer> buildWeekMap() {
+        Map<String, Integer> map = new HashMap<>();
+
+        map.put("MON", 1);
+        map.put("TUE", 2);
+        map.put("WED", 3);
+        map.put("THU", 4);
+        map.put("FRI", 5);
+        map.put("SAT", 6);
+        map.put("SUN", 7);
+
+        return map;
+    }
 
     class ParseException extends Exception {
         public ParseException(String message) {
@@ -96,6 +140,36 @@ public class CronExpression {
         }
 
         return result;
+    }
+
+    private String replaceValueInMap(String expression, Map<String, Integer> map) throws ParseException {
+        for (Map.Entry<String, Integer> entry : map.entrySet()) {
+            expression = expression.replace(entry.getKey(), String.valueOf(entry.getValue()));
+        }
+
+        for (int i = 0; i < expression.length(); ++i) {
+            if (Character.isLetter(expression.charAt(i))) {
+                StringBuilder builder = new StringBuilder();
+
+                while (i < expression.length() && Character.isLetter(expression.charAt(i))) {
+                    builder.append(expression.charAt(i));
+
+                    ++i;
+                }
+
+                throw new ParseException(builder.toString());
+            }
+        }
+
+        return expression;
+    }
+
+    private String replaceMonthExpr(String expression) throws ParseException {
+        return replaceValueInMap(expression, MONTH_MAP);
+    }
+
+    private String replaceWeekExpr(String expression) throws ParseException {
+        return replaceValueInMap(expression, WEEK_MAP);
     }
 
     private SortedSet<Integer> parse(String expression, int minValue, int maxValue) throws ParseException {
@@ -167,6 +241,22 @@ public class CronExpression {
             dates.addAll(parse(dayOfMonthExpr, 0, 31));
         }
 
+        String monthExpr = fields[4].trim();
+
+        monthExpr = replaceMonthExpr(monthExpr);
+
+        months.addAll(parse(monthExpr, MIN_MONTH, MAX_MONTH));
+
+        System.out.println("month:" + months);
+
+        String weekExpr = fields[5].trim();
+
+        weekExpr = replaceWeekExpr(weekExpr);
+
+        weeks.addAll(parse(weekExpr, MIN_WEEKDAY, MAX_WEEKDAY));
+
+        System.out.println("week:" + weeks);
+
         if (fields.length == FIELD_SIZE_WITH_YEAR) {
             String yearExpr = fields[6];
 
@@ -179,7 +269,7 @@ public class CronExpression {
             }
         }
 
-        System.out.println(years);
+        System.out.println("year:" + years);
 
         for (String string : fields) {
             System.out.println(string);
@@ -187,11 +277,20 @@ public class CronExpression {
     }
 
     public LocalDateTime getNextRunTime(LocalDateTime from) {
+        int year = from.getYear();
+        int month = from.getMonthValue();
+        int day = from.getDayOfWeek().getValue();
+        int hour = from.getHour();
+        int minute = from.getMinute();
+        int second = from.getSecond();
+
+
+
         return null;
     }
 
     public static void main(String [] args) throws Exception {
-        String string = "3/3,5/5,19,1,2,5-9 0,1-22 12,5/5 * * ?";
+        String string = "3/3,5/5,19,1,2,5-9 0,1-22 12,5/5 * JAN-APR SUN,MON";
 
         CronExpression expression = new CronExpression(string);
 
